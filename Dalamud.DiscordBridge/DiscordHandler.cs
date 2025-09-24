@@ -271,17 +271,17 @@ namespace Dalamud.DiscordBridge
                         
                         try
                         {
-                            await Service.Framework.RunOnFrameworkThread(() =>
+                            Service.Framework.RunOnFrameworkThread(() =>
                             {
                                 Thread.Sleep(250);
                                 Logger.Information($"[Framework Thread] Executing command: '{finalCommand}'");
                                 Service.CommandManager.ProcessCommand(finalCommand);
                             });
-                            Logger.Information("Command successfully processed by the framework thread.");
+                            Logger.Information("Command successfully posted to the framework thread.");
                         }
                         catch (Exception ex)
                         {
-                            Logger.Error(ex, "Failed to process FFXIV command on framework thread.");
+                            Logger.Error(ex, "Failed to post FFXIV command to the framework thread.");
                         }
                         
                         return; // Handled
