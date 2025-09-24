@@ -14,3 +14,4 @@ namespace Dalamud.DiscordBridge
         public const string LogoLink = "https://raw.githubusercontent.com/goatcorp/DalamudAssets/master/UIRes/logo.png";
     }
 }
+
