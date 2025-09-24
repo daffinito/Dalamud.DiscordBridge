@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.DiscordBridge.Model;
 using Dalamud.Game.Text;
@@ -187,6 +188,7 @@ namespace Dalamud.DiscordBridge
                 "y" or "yell" => "/yell",
                 "e" or "echo" => "/echo",
                 "nn" or "novicenetwork" => "/nn",
+                "tell" or "t" => "/tell",
                 "cwls1" => "/cwlinkshell1",
                 "cwls2" => "/cwlinkshell2",
                 "cwls3" => "/cwlinkshell3",
@@ -242,19 +244,40 @@ namespace Dalamud.DiscordBridge
                             await SendGenericEmbed(message.Channel, "You need to provide a message to send.", "Error", EmbedColorError);
                             return;
                         }
-
+                        
                         var senderDisplayName = (message.Author as IGuildUser)?.Nickname ?? message.Author.Username;
-                        var fullMessage = $"<{senderDisplayName}> {chatMessage}";
-                        var finalCommand = $"{xivCommand} {fullMessage}";
+                        string finalCommand;
+
+                        if (xivCommand == "/tell")
+                        {
+                            var tellParts = chatMessage.Split(new[] { ' ' }, 2);
+                            if (tellParts.Length < 2)
+                            {
+                                await SendGenericEmbed(message.Channel, "Usage: `xl!tell <player name>@<world> <message>`", "Error", EmbedColorError);
+                                return;
+                            }
+                            var recipient = tellParts[0];
+                            var tellMessage = tellParts[1];
+                            finalCommand = $"{xivCommand} \"{recipient}\" [{senderDisplayName}] {tellMessage}";
+                        }
+                        else
+                        {
+                            var fullMessage = $"[{senderDisplayName}] {chatMessage}";
+                            finalCommand = $"{xivCommand} {fullMessage}";
+                        }
+
+                        
                         Logger.Information($"Queueing FFXIV command for framework thread: '{finalCommand}'");
                         
                         try
                         {
                             await Service.Framework.RunOnFrameworkThread(() =>
                             {
+                                Thread.Sleep(250);
+                                Logger.Information($"[Framework Thread] Executing command: '{finalCommand}'");
                                 Service.CommandManager.ProcessCommand(finalCommand);
                             });
-                            Logger.Information("Command processed successfully.");
+                            Logger.Information("Command successfully processed by the framework thread.");
                         }
                         catch (Exception ex)
                         {
@@ -1026,7 +1049,7 @@ namespace Dalamud.DiscordBridge
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}togglebidirectional", "Enable or disable sending messages from this Discord channel to FFXIV.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}<kind> <message>", "If bidirectional chat is enabled, sends a message to the specified chat kind in FFXIV.\n" +
                                                                                              "Example: ``" + this.plugin.Config.DiscordBotPrefix + "fc Hello from Discord!``\n" +
-                                                                                             "Supported kinds: say, s, fc, p, a, shout, sh, yell, y, ls1-8, cwls1-8, e, echo, nn.")
+                                                                                             "Supported kinds: say, s, fc, p, a, shout, sh, yell, y, tell, t, ls1-8, cwls1-8, e, echo, nn.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledefaultnameavatar","Enable or disable sending webhook messages using your configured bot's name and the default bot avatar.\n**WARNING:**This should be combined with enabling the `togglesender` function or you will be removing any distinction between different player messages.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledf", "Enable or disable sending duty finder updates to this channel.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggleembed", "Enable or disable sending messages as Webhooks (default) or Embeds (Fallback mode)")
@@ -1445,7 +1468,7 @@ namespace Dalamud.DiscordBridge
                 .WithCurrentTimestamp()
                 .WithColor(0x297c00)
                 .WithTitle("Duty is ready: " + cfEvent.ContentFinderCondition.Name.ExtractText())
-                .WithImageUrl("https://xivapi.com" + $"/i/{iconFolder}/{cfEvent.ContentFinderCondition.Image}.png")
+                .WithImageUrl("[https://xivapi.com](https://xivapi.com)" + $"/i/{iconFolder}/{cfEvent.ContentFinderCondition.Image}.png")
                 .WithFooter(footer =>
                 {
                     footer
