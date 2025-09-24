@@ -242,7 +242,7 @@ namespace Dalamud.DiscordBridge
                         var senderDisplayName = (message.Author as IGuildUser)?.Nickname ?? message.Author.Username;
                         var fullMessage = $"<{senderDisplayName}> {chatMessage}";
 
-                        Service.Chat.SendMessage($"{xivCommand} {fullMessage}");
+                        Service.CommandManager.ProcessCommand($"{xivCommand} {fullMessage}");
                         
                         return; // Handled
                     }
@@ -1549,3 +1549,4 @@ namespace Dalamud.DiscordBridge
         }
     }
 }
+
