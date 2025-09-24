@@ -1,6 +1,7 @@
 ﻿using Dalamud.IoC;
 using Dalamud.Plugin.Services;
 using Dalamud.Plugin;
+using Dalamud.Game.Command;
 
 namespace Dalamud.DiscordBridge
 {
@@ -15,3 +16,4 @@ namespace Dalamud.DiscordBridge
         [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     }
 }
+

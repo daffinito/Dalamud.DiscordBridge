@@ -225,12 +225,16 @@ namespace Dalamud.DiscordBridge
                 // Check for bidirectional chat commands first. These are not owner-restricted.
                 if (this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var channelConfig) && channelConfig.IsBidirectional)
                 {
+                    Logger.Verbose("Channel is bidirectional. Processing potential game command.");
                     var parts = content.Split(new[] { ' ' }, 2);
                     var commandWithPrefix = parts[0];
                     var command = commandWithPrefix.Substring(this.plugin.Config.DiscordBotPrefix.Length).ToLower();
                     var chatMessage = parts.Length > 1 ? parts[1] : string.Empty;
+                    Logger.Verbose($"Parsed command: '{command}', Message: '{chatMessage}'");
 
                     var xivCommand = GetXivCommandForDiscordCommand(command);
+                    Logger.Verbose($"Mapped to FFXIV command: '{xivCommand ?? "null"}'");
+
                     if (!string.IsNullOrEmpty(xivCommand))
                     {
                         if (string.IsNullOrWhiteSpace(chatMessage))
@@ -241,8 +245,18 @@ namespace Dalamud.DiscordBridge
 
                         var senderDisplayName = (message.Author as IGuildUser)?.Nickname ?? message.Author.Username;
                         var fullMessage = $"<{senderDisplayName}> {chatMessage}";
-
-                        Service.CommandManager.ProcessCommand($"{xivCommand} {fullMessage}");
+                        var finalCommand = $"{xivCommand} {fullMessage}";
+                        Logger.Verbose($"Executing FFXIV command: '{finalCommand}'");
+                        
+                        try
+                        {
+                            Service.CommandManager.ProcessCommand(finalCommand);
+                            Logger.Verbose("Command processed successfully.");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error(ex, "Failed to process FFXIV command.");
+                        }
                         
                         return; // Handled
                     }
@@ -1038,7 +1052,7 @@ namespace Dalamud.DiscordBridge
                             + "Use ``default`` to reset the fallback for any unconfigured overrides.\n"
                             + $"Format: ``{this.plugin.Config.DiscordBotPrefix}unsetavatar <kind>``")
                         .AddField("Need more help?",
-                            $"You can [read the full step-by-step guide]({Constant.HelpLink}) or [join our Discord server]({Constant.DiscordJoinLink}) to ask for help.")
+                            $"You can [read the full step-by-step guide]({Constant.HelpListLink}) or [join our Discord server]({Constant.DiscordJoinLink}) to ask for help.")
                         .WithFooter(footer =>
                         {
                             footer
