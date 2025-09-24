@@ -273,7 +273,6 @@ namespace Dalamud.DiscordBridge
                         {
                             Service.Framework.RunOnFrameworkThread(() =>
                             {
-                                Thread.Sleep(250);
                                 Logger.Information($"[Framework Thread] Executing command: '{finalCommand}'");
                                 Service.CommandManager.ProcessCommand(finalCommand);
                             });
@@ -1468,7 +1467,7 @@ namespace Dalamud.DiscordBridge
                 .WithCurrentTimestamp()
                 .WithColor(0x297c00)
                 .WithTitle("Duty is ready: " + cfEvent.ContentFinderCondition.Name.ExtractText())
-                .WithImageUrl("[https://xivapi.com](https://xivapi.com)" + $"/i/{iconFolder}/{cfEvent.ContentFinderCondition.Image}.png")
+                .WithImageUrl("https://xivapi.com" + $"/i/{iconFolder}/{cfEvent.ContentFinderCondition.Image}.png")
                 .WithFooter(footer =>
                 {
                     footer
@@ -1589,4 +1588,5 @@ namespace Dalamud.DiscordBridge
         }
     }
 }
+"
 
