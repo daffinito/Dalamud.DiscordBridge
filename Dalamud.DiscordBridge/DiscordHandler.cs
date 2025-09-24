@@ -175,29 +175,99 @@ namespace Dalamud.DiscordBridge
 
         }
 
+        private string GetXivCommandForDiscordCommand(string discordCommand)
+        {
+            return discordCommand.ToLower() switch
+            {
+                "say" or "s" => "/say",
+                "fc" or "freecompany" => "/fc",
+                "p" or "party" => "/p",
+                "a" or "alliance" => "/a",
+                "sh" or "shout" => "/shout",
+                "y" or "yell" => "/yell",
+                "e" or "echo" => "/echo",
+                "nn" or "novicenetwork" => "/nn",
+                "cwls1" => "/cwlinkshell1",
+                "cwls2" => "/cwlinkshell2",
+                "cwls3" => "/cwlinkshell3",
+                "cwls4" => "/cwlinkshell4",
+                "cwls5" => "/cwlinkshell5",
+                "cwls6" => "/cwlinkshell6",
+                "cwls7" => "/cwlinkshell7",
+                "cwls8" => "/cwlinkshell8",
+                "ls1" => "/linkshell1",
+                "ls2" => "/linkshell2",
+                "ls3" => "/linkshell3",
+                "ls4" => "/linkshell4",
+                "ls5" => "/linkshell5",
+                "ls6" => "/linkshell6",
+                "ls7" => "/linkshell7",
+                "ls8" => "/linkshell8",
+                _ => null,
+            };
+        }
+
         private async Task SocketClientOnMessageReceived(SocketMessage message)
         {
             if (message.Author.IsBot || message.Author.IsWebhook)
                 return;
 
-            var args = message.Content.Split();
+            var content = message.Content;
 
             // if it doesn't start with the bot prefix, ignore it.
-            if (!args[0].StartsWith(this.plugin.Config.DiscordBotPrefix))
+            if (!content.StartsWith(this.plugin.Config.DiscordBotPrefix))
                 return;
 
-            /*
-            // this is only needed for debugging purposes.
-            foreach (var s in args)
-            {
-                Logger.Verbose(s);
-            }
-            */
-
-            Logger.Verbose("Received command: {0}", args[0]);
+            Logger.Verbose("Received command: {0}", content.Split()[0]);
 
             try
             {
+                // Check for bidirectional chat commands first. These are not owner-restricted.
+                if (this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var channelConfig) && channelConfig.IsBidirectional)
+                {
+                    var parts = content.Split(new[] { ' ' }, 2);
+                    var commandWithPrefix = parts[0];
+                    var command = commandWithPrefix.Substring(this.plugin.Config.DiscordBotPrefix.Length).ToLower();
+                    var chatMessage = parts.Length > 1 ? parts[1] : string.Empty;
+
+                    var xivCommand = GetXivCommandForDiscordCommand(command);
+                    if (!string.IsNullOrEmpty(xivCommand))
+                    {
+                        if (string.IsNullOrWhiteSpace(chatMessage))
+                        {
+                            await SendGenericEmbed(message.Channel, "You need to provide a message to send.", "Error", EmbedColorError);
+                            return;
+                        }
+
+                        var senderDisplayName = (message.Author as IGuildUser)?.Nickname ?? message.Author.Username;
+                        var fullMessage = $"<{senderDisplayName}> {chatMessage}";
+
+                        Service.Chat.SendMessage($"{xivCommand} {fullMessage}");
+                        
+                        return; // Handled
+                    }
+                }
+                
+                var args = message.Content.Split();
+
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "togglebidirectional" &&
+                    await EnsureOwner(message.Author, message.Channel))
+                {
+                    if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
+                        config = new DiscordChannelConfig();
+
+                    config.IsBidirectional = !config.IsBidirectional;
+
+                    this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
+                    this.plugin.Config.Save();
+
+                    await SendGenericEmbed(message.Channel,
+                        $"OK! This channel has been {(config.IsBidirectional ? "enabled" : "disabled")} for sending messages to FFXIV.",
+                        "Bidirectional Chat Toggled", EmbedColorFine);
+
+                    return;
+                }
+                
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "setchannel" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
@@ -936,6 +1006,10 @@ namespace Dalamud.DiscordBridge
                         //$"The following chat kinds are available:\n```all - All regular chat\n{XivChatTypeExtensions.TypeInfoDict.Select(x => $"{x.Value.Slug} - {x.Value.FancyName}").Aggregate((x, y) => x + "\n" + y)}```")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}unsetchannel", "Works like the previous command, but removes kinds of chat from the list of kinds that are sent to this channel.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}listchannel", "List all chat kinds that are sent to this channel.")
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}togglebidirectional", "Enable or disable sending messages from this Discord channel to FFXIV.")
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}<kind> <message>", "If bidirectional chat is enabled, sends a message to the specified chat kind in FFXIV.\n" +
+                                                                                             "Example: ``" + this.plugin.Config.DiscordBotPrefix + "fc Hello from Discord!``\n" +
+                                                                                             "Supported kinds: say, s, fc, p, a, shout, sh, yell, y, ls1-8, cwls1-8, e, echo, nn.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledefaultnameavatar","Enable or disable sending webhook messages using your configured bot's name and the default bot avatar.\n**WARNING:**This should be combined with enabling the `togglesender` function or you will be removing any distinction between different player messages.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledf", "Enable or disable sending duty finder updates to this channel.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggleembed", "Enable or disable sending messages as Webhooks (default) or Embeds (Fallback mode)")
