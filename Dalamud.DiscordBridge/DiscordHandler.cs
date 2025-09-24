@@ -24,6 +24,7 @@ namespace Dalamud.DiscordBridge
         
         private readonly DiscordSocketClient socketClient;
         private readonly SpecialCharsHandler specialChars;
+        private readonly ChatSender chatSender;
 
         public bool IsConnected => this.socketClient.ConnectionState == ConnectionState.Connected;
         public ulong UserId => this.socketClient.CurrentUser.Id;
@@ -96,6 +97,7 @@ namespace Dalamud.DiscordBridge
             this.plugin = plugin;
 
             this.specialChars = new SpecialCharsHandler();
+            this.chatSender = new ChatSender();
 
             this.MessageQueue = new DiscordMessageQueue(this.plugin);
 
@@ -273,14 +275,14 @@ namespace Dalamud.DiscordBridge
                         {
                             Service.Framework.RunOnFrameworkThread(() =>
                             {
-                                Logger.Information($"[Framework Thread] Executing command: '{finalCommand}'");
-                                Service.CommandManager.ProcessCommand(finalCommand);
+                                Logger.Information($"[Framework Thread] Sending message to chatbox: '{finalCommand}'");
+                                this.chatSender.SendMessage(finalCommand);
                             });
-                            Logger.Information("Command successfully posted to the framework thread.");
+                            Logger.Information("Message successfully posted to the framework thread.");
                         }
                         catch (Exception ex)
                         {
-                            Logger.Error(ex, "Failed to post FFXIV command to the framework thread.");
+                            Logger.Error(ex, "Failed to post message to the framework thread.");
                         }
                         
                         return; // Handled
