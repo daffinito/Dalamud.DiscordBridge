@@ -13,7 +13,7 @@ namespace Dalamud.DiscordBridge
 
         public long DuplicateCheckMS { get; set; } = 5000;
 
-        [JsonIgnore] private IDalamudPluginInterface pluginInterface;
+        [JsonIgnore] private IDalamudPluginInterface pluginInterface = null!;
 
         public string DiscordToken { get; set; } = string.Empty;
         public string DiscordOwnerName { get; set; } = string.Empty;

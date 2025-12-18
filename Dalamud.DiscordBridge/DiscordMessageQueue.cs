@@ -118,7 +118,7 @@ namespace Dalamud.DiscordBridge
                         if (resultEvent is QueuedChatEvent chatEvent)
                         {
                             var senderName = (chatEvent.ChatType == XivChatType.TellOutgoing || chatEvent.ChatType == XivChatType.Echo)
-                                ? Plugin.cachedLocalPlayer.Name
+                                ? (Plugin.cachedLocalPlayer?.Name ?? chatEvent.Sender.TextValue)
                                 : chatEvent.Sender.ToString();
                             var senderWorld = string.Empty;
 
@@ -161,8 +161,11 @@ namespace Dalamud.DiscordBridge
                                                     break;
                                                 case XivChatType.StandardEmote:
                                                     playerLink = chatEvent.Message.Payloads.FirstOrDefault(x => x.Type == PayloadType.Player) as PlayerPayload;
-                                                    senderName = playerLink.PlayerName;
-                                                    senderWorld = playerLink.World.Value.Name.ExtractText();
+                                                    if (playerLink != null)
+                                                    {
+                                                        senderName = playerLink.PlayerName;
+                                                        senderWorld = playerLink.World.Value.Name.ExtractText();
+                                                    }
                                                     // we need to get the world here because cross-world people will be assumed local player's otherwise.
                                                     /*
                                                     senderWorld = chatEvent.Message.TextValue.TrimStart(senderName.ToCharArray()).Split(' ')[0];

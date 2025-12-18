@@ -17,7 +17,7 @@ namespace Dalamud.DiscordBridge
 {
     public class DiscordBridgePlugin : IDalamudPlugin
     {
-        public static DiscordBridgePlugin Plugin { get; private set; }
+        public static DiscordBridgePlugin Plugin { get; private set; } = null!;
         private readonly PluginCommandManager<DiscordBridgePlugin> commandManager;
         private readonly PluginUI ui;
 
@@ -27,8 +27,7 @@ namespace Dalamud.DiscordBridge
 
         static readonly IPluginLog Logger = Service.Logger;
 
-        public IPlayerCharacter cachedLocalPlayer;
-        private bool startedFromConstructor = false;
+        public IPlayerCharacter? cachedLocalPlayer;
 
 
         public DiscordBridgePlugin(IDalamudPluginInterface pluginInterface, ICommandManager command)
@@ -75,7 +74,6 @@ namespace Dalamud.DiscordBridge
             {
                 await this.Discord.Start();
                 await this.Discord.SetIdlePresence();
-                startedFromConstructor = true;
             });
             
 
@@ -104,14 +102,14 @@ namespace Dalamud.DiscordBridge
         {
             // I don't like this, but I saw users state that localplayer was coming back null when it shouldn't.
             // So I'll just update the cache every tick even though that feels excessive.
-            cachedLocalPlayer = await framework.RunOnFrameworkThread(() => Service.State.LocalPlayer);
+            cachedLocalPlayer = await framework.RunOnFrameworkThread(() => Service.ObjectTable.LocalPlayer);
         }
 
         private async void OnLoginEvent()
         {
             // Since I'm pulling this on Framework updates now, this might not be needed anymore.
             // But I'll keep it for now just in case.
-            cachedLocalPlayer = await Service.Framework.RunOnFrameworkThread(() => Service.State.LocalPlayer);
+            cachedLocalPlayer = await Service.Framework.RunOnFrameworkThread(() => Service.ObjectTable.LocalPlayer);
             await this.Discord.SetOnlinePresence();
 
             /* 
