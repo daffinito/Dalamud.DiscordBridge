@@ -35,7 +35,7 @@ namespace Dalamud.DiscordBridge
             Plugin = this;
             pluginInterface.Create<Service>();
 
-            this.Config = (Configuration)pluginInterface.GetPluginConfig() ?? new Configuration();
+            this.Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             this.Config.Initialize(pluginInterface);
 
             pluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
@@ -164,7 +164,8 @@ namespace Dalamud.DiscordBridge
                 {
                     ChatType = (XivChatType)((int)type & 0x7F), // strip off the sender mask subtype
                     Message = message,
-                    Sender = sender
+                    Sender = sender,
+                    AvatarUrl = string.Empty
                 });
             }
             
@@ -194,7 +195,8 @@ namespace Dalamud.DiscordBridge
             {
                 ChatType = XivChatTypeExtensions.GetBySlug(commandArgs?[0] ?? "e"),
                 Message = new SeString(new Payload[]{new TextPayload("Test Message"), }),
-                Sender = new SeString(new Payload[]{new TextPayload("Test Sender"), })
+                Sender = new SeString(new Payload[]{new TextPayload("Test Sender"), }),
+                AvatarUrl = string.Empty
             });
         }
         

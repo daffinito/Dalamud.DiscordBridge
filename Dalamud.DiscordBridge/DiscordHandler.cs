@@ -178,7 +178,7 @@ namespace Dalamud.DiscordBridge
 
         }
 
-        private string GetXivCommandForDiscordCommand(string discordCommand)
+        private string? GetXivCommandForDiscordCommand(string discordCommand)
         {
             return discordCommand.ToLower() switch
             {
@@ -1251,12 +1251,14 @@ namespace Dalamud.DiscordBridge
             // default avatar url to logo link if empty
             if (string.IsNullOrEmpty(avatarUrl))
             {
-
-                if (!plugin.Config.ChatTypeAvatarURL.TryGetValue(chatType, out avatarUrl))
+                if (!plugin.Config.ChatTypeAvatarURL.TryGetValue(chatType, out var chatTypeAvatar) || string.IsNullOrEmpty(chatTypeAvatar))
                 {
                     avatarUrl = plugin.Config.DefaultAvatarURL ?? Constant.LogoLink;
                 }
-
+                else
+                {
+                    avatarUrl = chatTypeAvatar;
+                }
             }
 
             var applicableChannels =
@@ -1314,7 +1316,7 @@ namespace Dalamud.DiscordBridge
                             var playerCacheName = $"{senderName}＠{senderWorld}";
                             Logger.Debug($"Searching for {playerCacheName}");
                             
-                            if (CachedResponses.TryGetValue(playerCacheName, out LodestoneCharacter lschar))
+                            if (CachedResponses.TryGetValue(playerCacheName, out LodestoneCharacter? lschar) && lschar != null)
                             {
                                 Logger.Debug($"Retrived cached data for {lschar.Name} {lschar.Avatar}");
                                 avatarUrl = lschar.Avatar.ToString();
@@ -1369,8 +1371,10 @@ namespace Dalamud.DiscordBridge
                 ? ""
                 : $"＠{senderWorld}");
 
-            string prefix = string.Empty;
-            this.plugin.Config.PrefixConfigs.TryGetValue(chatType, out prefix);
+            if (!this.plugin.Config.PrefixConfigs.TryGetValue(chatType, out var prefix))
+            {
+                prefix = string.Empty;
+            }
 
             bool senderInMessage = this.plugin.Config.SenderInMessage;
 
@@ -1440,7 +1444,7 @@ namespace Dalamud.DiscordBridge
                         if (this.plugin.Config.ForceDefaultNameAvatar)
                         {
                             displayName = this.socketClient.CurrentUser.Username.ToLower().Contains("discord") ? "Dalamud Chat Bridge" : this.socketClient.CurrentUser.Username;
-                            avatarUrl = plugin.Config.DefaultAvatarURL;
+                            avatarUrl = plugin.Config.DefaultAvatarURL ?? Constant.LogoLink;
                         }
                         
                         await webhookClient.SendMessageAsync(

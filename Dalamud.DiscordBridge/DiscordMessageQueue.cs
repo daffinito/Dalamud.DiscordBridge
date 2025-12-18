@@ -156,7 +156,7 @@ namespace Dalamud.DiscordBridge
                                                 case XivChatType.Notice:
                                                     break;
                                                 case XivChatType.TellOutgoing:
-                                                    senderName = Plugin.cachedLocalPlayer.Name;
+                                                    senderName = Plugin.cachedLocalPlayer?.Name ?? "Unknown";
                                                     // senderWorld = this.plugin.Interface.ClientState.LocalPlayer.HomeWorld.GameData.Name;
                                                     break;
                                                 case XivChatType.StandardEmote:
@@ -174,7 +174,7 @@ namespace Dalamud.DiscordBridge
                                                     */
                                                     break;
                                                 case XivChatType.Echo:
-                                                    senderName = Plugin.cachedLocalPlayer.Name;
+                                                    senderName = Plugin.cachedLocalPlayer?.Name ?? "Unknown";
                                                     // senderWorld = this.plugin.Interface.ClientState.LocalPlayer.HomeWorld.GameData.Name;
                                                     break;
                                                 case (XivChatType)61: // NPC Talk
