@@ -1185,8 +1185,10 @@ namespace Dalamud.DiscordBridge
             
             Logger.Information($"Retainer sold itemID: {itemId} with iconurl: {iconurl}");
 
-            string prefix = string.Empty;
-            this.plugin.Config.PrefixConfigs.TryGetValue(chatType, out prefix);
+            if (!this.plugin.Config.PrefixConfigs.TryGetValue(chatType, out var prefix))
+            {
+                prefix = string.Empty;
+            }
 
             foreach (var channelConfig in applicableChannels)
             {
@@ -1233,7 +1235,7 @@ namespace Dalamud.DiscordBridge
 
         }
 
-        public async Task SendChatEvent(string message, string senderName, string senderWorld, XivChatType chatType, string avatarUrl = "")
+        public async Task SendChatEvent(string message, string senderName, string? senderWorld, XivChatType chatType, string avatarUrl = "")
         {
             // set fields for true chat messages or custom via ipc
             if (chatType != XivChatTypeExtensions.IpcChatType)
@@ -1318,7 +1320,7 @@ namespace Dalamud.DiscordBridge
                             
                             if (CachedResponses.TryGetValue(playerCacheName, out LodestoneCharacter? lschar) && lschar != null)
                             {
-                                Logger.Debug($"Retrived cached data for {lschar.Name} {lschar.Avatar}");
+                                Logger.Debug($"Retrived cached data for {lschar!.Name} {lschar.Avatar}");
                                 avatarUrl = lschar.Avatar.ToString();
                             }
                             else
@@ -1328,10 +1330,10 @@ namespace Dalamud.DiscordBridge
                                 var searchPage = await lodestoneClient.SearchCharacter(new CharacterSearchQuery
                                 {
                                     CharacterName = senderName,
-                                    World = senderWorld,
+                                    World = senderWorld ?? string.Empty,
                                 });
 
-                                var matchingEntry = searchPage.Results.FirstOrDefault(result => result.Name == senderName);
+                                var matchingEntry = searchPage?.Results?.FirstOrDefault(result => result.Name == senderName);
                                 if (matchingEntry == null)
                                 {
                                     break;
@@ -1341,7 +1343,7 @@ namespace Dalamud.DiscordBridge
                                 if (lschar != null)
                                 {
                                     CachedResponses.TryAdd(playerCacheName, lschar);
-                                    Logger.Debug($"Adding cached data for {lschar.Name} {lschar.Avatar}");
+                                    Logger.Debug($"Adding cached data for {lschar!.Name} {lschar.Avatar}");
                                     avatarUrl = lschar.Avatar.ToString();
                                 }
                             }

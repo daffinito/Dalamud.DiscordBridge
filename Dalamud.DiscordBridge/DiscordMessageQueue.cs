@@ -131,9 +131,10 @@ namespace Dalamud.DiscordBridge
 
                             try
                             {
+                                PlayerPayload? playerLink = null;
                                 if (Plugin.cachedLocalPlayer != null)
                                 {
-                                    if (chatEvent.Sender.Payloads.FirstOrDefault(x => x.Type == PayloadType.Player) is not PlayerPayload playerLink)
+                                    if (chatEvent.Sender.Payloads.FirstOrDefault(x => x.Type == PayloadType.Player) is not PlayerPayload link)
                                     {
                                         // chat messages from the local player do not include a player link, and are just the raw name
                                         // but we should still track other instances to know if this is ever an issue otherwise
@@ -205,7 +206,7 @@ namespace Dalamud.DiscordBridge
 
                                         // only if we still need one
                                         if (senderWorld.Equals(string.Empty))
-                                            senderWorld = Plugin.cachedLocalPlayer.HomeWorld.Value.Name.ExtractText();
+                                            senderWorld = Plugin.cachedLocalPlayer?.HomeWorld.Value.Name.ExtractText() ?? string.Empty;
 
 
 
@@ -213,12 +214,13 @@ namespace Dalamud.DiscordBridge
                                     }
                                     else
                                     {
+                                        playerLink = chatEvent.Sender.Payloads.FirstOrDefault(x => x.Type == PayloadType.Player) as PlayerPayload;
                                         senderName = chatEvent.ChatType == XivChatType.TellOutgoing
                                             ? Plugin.cachedLocalPlayer.Name
-                                            : playerLink.PlayerName;
+                                            : playerLink?.PlayerName ?? chatEvent.Sender.TextValue;
                                         senderWorld = chatEvent.ChatType == XivChatType.TellOutgoing
                                             ? Plugin.cachedLocalPlayer.HomeWorld.Value.Name.ExtractText()
-                                            : playerLink.World.Value.Name.ExtractText();
+                                            : (playerLink?.World.Value.Name.ExtractText() ?? string.Empty);
                                         // Logger.Information($"FRANZDEBUGGING Playerlink was not null: {senderName}＠{senderWorld}");
                                     }
                                 }
