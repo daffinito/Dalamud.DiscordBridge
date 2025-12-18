@@ -21,7 +21,7 @@ namespace Dalamud.DiscordBridge
             this.command = command;
             this.host = host;
 
-            this.pluginCommands = this.host.GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance)
+            this.pluginCommands = this.host!.GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance)
                 .Where(method => method.GetCustomAttribute<CommandAttribute>() != null)
                 .SelectMany(GetCommandInfoTuple)
                 .ToArray() ?? Array.Empty<(string, CommandInfo)>();
