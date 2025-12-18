@@ -1320,8 +1320,8 @@ namespace Dalamud.DiscordBridge
                             
                             if (CachedResponses.TryGetValue(playerCacheName, out LodestoneCharacter? lschar) && lschar != null)
                             {
-                                Logger.Debug($"Retrived cached data for {lschar!.Name} {lschar.Avatar}");
-                                avatarUrl = lschar.Avatar.ToString();
+                                Logger.Debug($"Retrived cached data for {lschar!.Name} {lschar!.Avatar}");
+                                avatarUrl = lschar!.Avatar.ToString();
                             }
                             else
                             {
@@ -1343,8 +1343,8 @@ namespace Dalamud.DiscordBridge
                                 if (lschar != null)
                                 {
                                     CachedResponses.TryAdd(playerCacheName, lschar);
-                                    Logger.Debug($"Adding cached data for {lschar!.Name} {lschar.Avatar}");
-                                    avatarUrl = lschar.Avatar.ToString();
+                                    Logger.Debug($"Adding cached data for {lschar!.Name} {lschar!.Avatar}");
+                                    avatarUrl = lschar!.Avatar.ToString();
                                 }
                             }
 
