@@ -2,7 +2,7 @@
 <Project Sdk="Dalamud.NET.Sdk/14.0.0">
 
   <PropertyGroup>
-	<NoWarn>CA1416,CA1862,IDE0003,IDE0060</NoWarn>
+	<NoWarn>CA1416,CA1862,IDE0003,IDE0060,MSB3277</NoWarn>
     <AssemblyVersion>1.5.3.0</AssemblyVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <TargetFramework>net10.0-windows7.0</TargetFramework>
