@@ -306,7 +306,7 @@ namespace Dalamud.DiscordBridge
                 return;
             }
 
-            Service.Logger.Information($"UnitBase ID: {unitBase->ID}, Name: {unitBase->NameString}, IsReady: {unitBase->IsReady}");
+            Service.Logger.Information($"UnitBase Id: {unitBase->Id}, Name: {unitBase->NameString}, IsReady: {unitBase->IsReady}");
             Service.Logger.Information("Attempting tab navigation with multiple patterns...");
 
             unitBase->FireCallbackInt(2);
