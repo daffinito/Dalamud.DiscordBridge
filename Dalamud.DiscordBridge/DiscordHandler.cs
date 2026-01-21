@@ -890,7 +890,10 @@ namespace Dalamud.DiscordBridge
                     var actionName = action?.Name ?? $"Action {actionId}";
 
                     await SendGenericEmbed(message.Channel,
-                        $"Activating **{actionName}**...\n\nThis may take a few seconds.",
+                        $"Opening FC menu for **{actionName}** (ID: {actionId})...\n\n" +
+                        $"**Note:** Full automation is still in development. The FC menu will open, " +
+                        $"but you may need to manually navigate to the Actions tab and activate the action.\n\n" +
+                        $"Check the plugin logs (/xllog) to see if any automatic patterns worked!",
                         "Enable FC Action", EmbedColorFine);
                     return;
                 }

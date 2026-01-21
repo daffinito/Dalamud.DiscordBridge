@@ -318,27 +318,41 @@ namespace Dalamud.DiscordBridge
             }
 
             Service.Logger.Information($"UnitBase Id: {unitBase->Id}, Name: {unitBase->NameString}, IsReady: {unitBase->IsReady}");
-            Service.Logger.Information("Attempting tab navigation...");
+            Service.Logger.Information("Trying multiple tab navigation patterns...");
 
-            var values = stackalloc AtkValue[2];
-            values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-            values[0].Int = 12;
-            values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-            values[1].Int = 2;
+            var patterns = new[] {
+                (argCount: 1, event1: 2, event2: 0),
+                (argCount: 2, event1: 0, event2: 2),
+                (argCount: 2, event1: 1, event2: 2),
+                (argCount: 2, event1: 2, event2: 2),
+                (argCount: 2, event1: 3, event2: 2),
+                (argCount: 2, event1: 4, event2: 2),
+                (argCount: 2, event1: 12, event2: 2)
+            };
 
-            Service.Logger.Information("Pattern: FireCallback(2, [12, 2]) - event 12, tab 2");
-            unitBase->FireCallback(2, values);
-
-            framework.RunOnTick(() =>
+            foreach (var pattern in patterns)
             {
-                Service.Logger.Information("Checking if tab switched...");
-                var checkWrapper = gameGui.GetAddonByName("FreeCompany");
-                if (checkWrapper.Address != IntPtr.Zero)
+                if (pattern.argCount == 1)
                 {
-                    var checkBase = (AtkUnitBase*)checkWrapper.Address;
-                    Service.Logger.Information($"After tab callback - IsVisible: {checkBase->IsVisible}, IsReady: {checkBase->IsReady}");
+                    Service.Logger.Information($"Trying: FireCallbackInt({pattern.event1})");
+                    unitBase->FireCallbackInt(pattern.event1);
                 }
-            }, TimeSpan.FromMilliseconds(100));
+                else
+                {
+                    var values = stackalloc AtkValue[2];
+                    values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+                    values[0].Int = pattern.event1;
+                    values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+                    values[1].Int = pattern.event2;
+
+                    Service.Logger.Information($"Trying: FireCallback(2, [{pattern.event1}, {pattern.event2}])");
+                    unitBase->FireCallback(2, values);
+                }
+
+                System.Threading.Thread.Sleep(50);
+            }
+
+            Service.Logger.Information("Finished trying tab patterns. Manually check if any worked.");
         }
 
         private void SelectAndActivateAction(uint actionId)
@@ -357,27 +371,13 @@ namespace Dalamud.DiscordBridge
                 return;
             }
 
-            Service.Logger.Information($"Attempting to activate action {actionId}...");
-
-            var values = stackalloc AtkValue[2];
-            values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-            values[0].Int = 12;
-            values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-            values[1].Int = (int)actionId;
-
-            Service.Logger.Information($"Pattern: FireCallback(2, [12, {actionId}]) - select action");
-            unitBase->FireCallback(2, values);
-
-            framework.RunOnTick(() =>
-            {
-                Service.Logger.Information("Attempting to click activate button...");
-                var activateValues = stackalloc AtkValue[1];
-                activateValues[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-                activateValues[0].Int = 0;
-
-                Service.Logger.Information("Pattern: FireCallback(1, [0]) - activate button");
-                unitBase->FireCallback(1, activateValues);
-            }, TimeSpan.FromMilliseconds(100));
+            Service.Logger.Information($"*** Manual action required ***");
+            Service.Logger.Information($"The FC menu is now open. Please manually:");
+            Service.Logger.Information($"1. Click the 'Company Actions' tab");
+            Service.Logger.Information($"2. Select action ID {actionId} from the list");
+            Service.Logger.Information($"3. Click the 'Activate' button");
+            Service.Logger.Information("Automatic UI interaction requires reverse-engineering the exact callback structure for this addon.");
+            Service.Logger.Information("This varies by game version and is not currently implemented.");
 
             framework.RunOnTick(() =>
             {
