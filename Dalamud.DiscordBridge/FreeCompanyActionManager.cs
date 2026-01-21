@@ -55,18 +55,26 @@ namespace Dalamud.DiscordBridge
         {
             try
             {
-                if (unitBase != null && unitBase->NameString == "FreeCompany")
+                if (unitBase != null)
                 {
-                    Service.Logger.Information("=== FC CALLBACK DETECTED ===");
-                    Service.Logger.Information($"UnitBase: {unitBase->NameString}, ValueCount: {valueCount}, UpdateState: {updateState}");
+                    var addonName = unitBase->NameString;
 
-                    for (int i = 0; i < valueCount && i < 10; i++)
+                    if (addonName == "FreeCompany" ||
+                        addonName.Contains("Context") ||
+                        addonName.Contains("Menu") ||
+                        addonName == "SelectYesno")
                     {
-                        var value = values[i];
-                        Service.Logger.Information($"  Value[{i}]: Type={value.Type}, Int={value.Int}, UInt={value.UInt}, Bool={value.Byte}");
-                    }
+                        Service.Logger.Information("=== CALLBACK DETECTED ===");
+                        Service.Logger.Information($"Addon: {addonName}, ValueCount: {valueCount}, UpdateState: {updateState}");
 
-                    Service.Logger.Information("===========================");
+                        for (int i = 0; i < valueCount && i < 10; i++)
+                        {
+                            var value = values[i];
+                            Service.Logger.Information($"  Value[{i}]: Type={value.Type}, Int={value.Int}, UInt={value.UInt}");
+                        }
+
+                        Service.Logger.Information("=========================");
+                    }
                 }
             }
             catch (Exception ex)
