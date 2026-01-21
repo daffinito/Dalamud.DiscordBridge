@@ -310,8 +310,8 @@ namespace Dalamud.DiscordBridge
             agentInterface->Show();
             Service.Logger.Information("Opened FC menu");
         }
-    }
-}
+
+        private void NavigateToActionsTab()
         {
             var addonWrapper = gameGui.GetAddonByName("FreeCompany");
             Service.Logger.Information($"GetAddonByName('FreeCompany') returned address: {addonWrapper.Address:X}");
