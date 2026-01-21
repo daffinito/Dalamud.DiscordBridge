@@ -828,7 +828,9 @@ namespace Dalamud.DiscordBridge
                     if (!await EnsureOwner(message.Author, message.Channel))
                         return;
 
-                    var activeActions = this.plugin.FCActionManager.GetActiveActions();
+                    var activeActions = await Service.Framework.RunOnFrameworkThread(() =>
+                        this.plugin.FCActionManager.GetActiveActions());
+
                     if (!activeActions.Any())
                     {
                         await SendGenericEmbed(message.Channel, "No FC actions are currently active.", "Active FC Actions", EmbedColorFine);
@@ -874,7 +876,9 @@ namespace Dalamud.DiscordBridge
                         return;
                     }
 
-                    var error = this.plugin.FCActionManager.ActivateAction(actionId);
+                    var error = await Service.Framework.RunOnFrameworkThread(() =>
+                        this.plugin.FCActionManager.ActivateAction(actionId));
+
                     if (error != null)
                     {
                         await SendGenericEmbed(message.Channel, error, "Enable FC Action", EmbedColorError);
@@ -910,7 +914,9 @@ namespace Dalamud.DiscordBridge
                         return;
                     }
 
-                    var error = this.plugin.FCActionManager.DeactivateAction(actionId);
+                    var error = await Service.Framework.RunOnFrameworkThread(() =>
+                        this.plugin.FCActionManager.DeactivateAction(actionId));
+
                     if (error != null)
                     {
                         await SendGenericEmbed(message.Channel, error, "Disable FC Action", EmbedColorError);
