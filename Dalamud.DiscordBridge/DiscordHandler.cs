@@ -831,7 +831,7 @@ namespace Dalamud.DiscordBridge
                     var activeActions = this.plugin.FCActionManager.GetActiveActions();
                     if (!activeActions.Any())
                     {
-                        await SendGenericEmbed(message.Channel, "No FC actions are currently active.", "Active FC Actions", EmbedColorInfo);
+                        await SendGenericEmbed(message.Channel, "No FC actions are currently active.", "Active FC Actions", EmbedColorFine);
                         return;
                     }
 

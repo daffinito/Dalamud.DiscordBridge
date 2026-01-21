@@ -66,7 +66,7 @@ namespace Dalamud.DiscordBridge
             }
 
 
-            this.FCActionManager = new FreeCompanyActionManager(Service.Data, Service.GameGui, Service.Framework, Service.State);
+            this.FCActionManager = new FreeCompanyActionManager(Service.Data, Service.GameGui, Service.Framework, Service.ObjectTable);
             this.DiscordBridgeProvider = new DiscordBridgeProvider(pluginInterface, new DiscordBridgeAPI(this));
             this.Discord = new DiscordHandler(this);
             // Task t = this.Discord.Start(); // bot won't start if we just have this

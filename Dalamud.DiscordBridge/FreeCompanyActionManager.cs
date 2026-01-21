@@ -5,23 +5,20 @@ using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Excel.Sheets;
 
 namespace Dalamud.DiscordBridge
 {
     internal unsafe class FreeCompanyActionManager
     {
-        private readonly IDataManager dataManager;
         private readonly IGameGui gameGui;
         private readonly IFramework framework;
-        private readonly IClientState clientState;
+        private readonly IObjectTable objectTable;
 
-        public FreeCompanyActionManager(IDataManager dataManager, IGameGui gameGui, IFramework framework, IClientState clientState)
+        public FreeCompanyActionManager(IDataManager dataManager, IGameGui gameGui, IFramework framework, IObjectTable objectTable)
         {
-            this.dataManager = dataManager;
             this.gameGui = gameGui;
             this.framework = framework;
-            this.clientState = clientState;
+            this.objectTable = objectTable;
         }
 
         public class FCActionInfo
@@ -35,49 +32,56 @@ namespace Dalamud.DiscordBridge
             public uint TimeRemaining { get; set; }
         }
 
+        private static readonly Dictionary<uint, FCActionInfo> StaticFCActions = new()
+        {
+            { 0, new FCActionInfo { Id = 0, Name = "The Heat of Battle", Description = "Increases EXP earned by 5%", IconId = 60801, Cost = 240 } },
+            { 1, new FCActionInfo { Id = 1, Name = "The Heat of Battle II", Description = "Increases EXP earned by 10%", IconId = 60802, Cost = 360 } },
+            { 2, new FCActionInfo { Id = 2, Name = "The Heat of Battle III", Description = "Increases EXP earned by 15%", IconId = 60803, Cost = 480 } },
+            { 3, new FCActionInfo { Id = 3, Name = "In Control", Description = "Increases control by 5%", IconId = 60810, Cost = 240 } },
+            { 4, new FCActionInfo { Id = 4, Name = "In Control II", Description = "Increases control by 10%", IconId = 60811, Cost = 360 } },
+            { 5, new FCActionInfo { Id = 5, Name = "In Control III", Description = "Increases control by 15%", IconId = 60812, Cost = 480 } },
+            { 6, new FCActionInfo { Id = 6, Name = "Survival Manual", Description = "Increases gathering EXP by 5%", IconId = 60804, Cost = 240 } },
+            { 7, new FCActionInfo { Id = 7, Name = "Survival Manual II", Description = "Increases gathering EXP by 10%", IconId = 60805, Cost = 360 } },
+            { 8, new FCActionInfo { Id = 8, Name = "Survival Manual III", Description = "Increases gathering EXP by 15%", IconId = 60806, Cost = 480 } },
+            { 9, new FCActionInfo { Id = 9, Name = "Earth and Water", Description = "Reduces gathering attempts by 1", IconId = 60807, Cost = 240 } },
+            { 10, new FCActionInfo { Id = 10, Name = "Earth and Water II", Description = "Reduces gathering attempts by 2", IconId = 60808, Cost = 360 } },
+            { 11, new FCActionInfo { Id = 11, Name = "What You See", Description = "Increases gathering attempts by 1", IconId = 60809, Cost = 240 } },
+            { 12, new FCActionInfo { Id = 12, Name = "What You See II", Description = "Increases gathering attempts by 2", IconId = 60819, Cost = 360 } },
+            { 13, new FCActionInfo { Id = 13, Name = "Helping Hand", Description = "Increases crafting progress by 5%", IconId = 60813, Cost = 240 } },
+            { 14, new FCActionInfo { Id = 14, Name = "Helping Hand II", Description = "Increases crafting progress by 10%", IconId = 60814, Cost = 360 } },
+            { 15, new FCActionInfo { Id = 15, Name = "Helping Hand III", Description = "Increases crafting progress by 15%", IconId = 60815, Cost = 480 } },
+            { 16, new FCActionInfo { Id = 16, Name = "Back on Your Feet", Description = "Reduces durability loss by 5", IconId = 60816, Cost = 240 } },
+            { 17, new FCActionInfo { Id = 17, Name = "Back on Your Feet II", Description = "Reduces durability loss by 10", IconId = 60817, Cost = 360 } },
+            { 18, new FCActionInfo { Id = 18, Name = "Back on Your Feet III", Description = "Reduces durability loss by 15", IconId = 60818, Cost = 480 } },
+            { 19, new FCActionInfo { Id = 19, Name = "Meat and Mead", Description = "Reduces teleportation costs by 10%", IconId = 60820, Cost = 240 } },
+            { 20, new FCActionInfo { Id = 20, Name = "Meat and Mead II", Description = "Reduces teleportation costs by 20%", IconId = 60821, Cost = 360 } },
+            { 21, new FCActionInfo { Id = 21, Name = "That Which Binds Us", Description = "Increases spiritbond gain by 10%", IconId = 60822, Cost = 240 } },
+            { 22, new FCActionInfo { Id = 22, Name = "That Which Binds Us II", Description = "Increases spiritbond gain by 20%", IconId = 60823, Cost = 360 } },
+            { 23, new FCActionInfo { Id = 23, Name = "That Which Binds Us III", Description = "Reduces gear spiritbond requirement", IconId = 60824, Cost = 480 } },
+            { 24, new FCActionInfo { Id = 24, Name = "Seal Sweetener", Description = "Increases GC seals by 10%", IconId = 60825, Cost = 240 } },
+            { 25, new FCActionInfo { Id = 25, Name = "Seal Sweetener II", Description = "Increases GC seals by 15%", IconId = 60826, Cost = 360 } },
+            { 26, new FCActionInfo { Id = 26, Name = "Seal Sweetener III", Description = "Increases GC seals by 20%", IconId = 60827, Cost = 480 } },
+            { 27, new FCActionInfo { Id = 27, Name = "Proper Care", Description = "Reduces gear degradation by 10%", IconId = 60828, Cost = 240 } },
+            { 28, new FCActionInfo { Id = 28, Name = "Proper Care II", Description = "Reduces gear degradation by 20%", IconId = 60829, Cost = 360 } },
+            { 29, new FCActionInfo { Id = 29, Name = "Live off the Land", Description = "Increases enmity generation for tanks", IconId = 60830, Cost = 240 } },
+            { 30, new FCActionInfo { Id = 30, Name = "A Man's Best Friend", Description = "Increases chocobo EXP by 5%", IconId = 60831, Cost = 240 } },
+            { 31, new FCActionInfo { Id = 31, Name = "A Man's Best Friend II", Description = "Increases chocobo EXP by 10%", IconId = 60832, Cost = 360 } }
+        };
+
         public List<FCActionInfo> GetAllActions()
         {
-            var actions = new List<FCActionInfo>();
-            var sheet = dataManager.GetExcelSheet<FreeCompanyAction>();
-
-            if (sheet == null)
-            {
-                Service.Logger.Error("Could not load FreeCompanyAction sheet");
-                return actions;
-            }
-
-            foreach (var action in sheet)
-            {
-                var name = action.Name.ToString();
-                if (string.IsNullOrEmpty(name))
-                    continue;
-
-                actions.Add(new FCActionInfo
-                {
-                    Id = action.RowId,
-                    Name = name,
-                    Description = action.Description.ToString(),
-                    IconId = action.Icon,
-                    Cost = action.Cost
-                });
-            }
-
-            return actions;
+            return StaticFCActions.Values.ToList();
         }
 
         public List<FCActionInfo> GetActiveActions()
         {
             var activeActions = new List<FCActionInfo>();
 
-            if (clientState.LocalPlayer == null)
+            if (objectTable.LocalPlayer == null)
                 return activeActions;
 
             var agent = GetFCAgent();
             if (agent == null)
-                return activeActions;
-
-            var sheet = dataManager.GetExcelSheet<FreeCompanyAction>();
-            if (sheet == null)
                 return activeActions;
 
             for (int slot = 0; slot < 2; slot++)
@@ -85,23 +89,19 @@ namespace Dalamud.DiscordBridge
                 var timeRemaining = agent->ActionTimeRemaining[slot];
                 if (timeRemaining > 0)
                 {
-                    var statusId = FindActiveActionInSlot(slot);
-                    if (statusId > 0)
+                    var actionId = FindActiveActionIdInSlot(slot);
+                    if (actionId > 0 && StaticFCActions.TryGetValue(actionId, out var action))
                     {
-                        var action = sheet.FirstOrDefault(a => a.Action.IsValid && a.Action.Value.RowId == statusId);
-                        if (action.RowId > 0)
+                        activeActions.Add(new FCActionInfo
                         {
-                            activeActions.Add(new FCActionInfo
-                            {
-                                Id = action.RowId,
-                                Name = action.Name.ToString(),
-                                Description = action.Description.ToString(),
-                                IconId = action.Icon,
-                                Cost = action.Cost,
-                                IsActive = true,
-                                TimeRemaining = timeRemaining
-                            });
-                        }
+                            Id = action.Id,
+                            Name = action.Name,
+                            Description = action.Description,
+                            IconId = action.IconId,
+                            Cost = action.Cost,
+                            IsActive = true,
+                            TimeRemaining = timeRemaining
+                        });
                     }
                 }
             }
@@ -109,18 +109,24 @@ namespace Dalamud.DiscordBridge
             return activeActions;
         }
 
-        private uint FindActiveActionInSlot(int slot)
+        private uint FindActiveActionIdInSlot(int slot)
         {
-            var player = clientState.LocalPlayer;
+            var player = objectTable.LocalPlayer;
             if (player == null)
                 return 0;
 
-            var fcStatusIds = new HashSet<uint>
+            var statusToActionMap = new Dictionary<uint, uint>
             {
-                50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
-                60, 61, 62, 63, 64, 65, 66, 67, 68, 69,
-                70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
-                80, 81
+                { 414, 0 }, { 50, 1 }, { 51, 2 },
+                { 415, 3 }, { 52, 4 }, { 53, 5 },
+                { 416, 6 }, { 54, 7 }, { 55, 8 },
+                { 56, 9 }, { 57, 10 }, { 58, 11 }, { 59, 12 },
+                { 60, 13 }, { 61, 14 }, { 62, 15 },
+                { 63, 16 }, { 64, 17 }, { 65, 18 },
+                { 66, 19 }, { 67, 20 }, { 68, 21 }, { 69, 22 }, { 70, 23 },
+                { 71, 24 }, { 72, 25 }, { 73, 26 },
+                { 74, 27 }, { 75, 28 }, { 76, 29 },
+                { 77, 30 }, { 78, 31 }
             };
 
             foreach (var status in player.StatusList)
@@ -128,8 +134,8 @@ namespace Dalamud.DiscordBridge
                 if (status == null)
                     continue;
 
-                if (fcStatusIds.Contains(status.StatusId))
-                    return status.StatusId;
+                if (statusToActionMap.TryGetValue(status.StatusId, out var actionId))
+                    return actionId;
             }
 
             return 0;
@@ -137,19 +143,14 @@ namespace Dalamud.DiscordBridge
 
         public string? ActivateAction(uint actionId)
         {
-            if (clientState.LocalPlayer == null)
+            if (objectTable.LocalPlayer == null)
                 return "You must be logged in to activate FC actions.";
 
             var agent = GetFCAgent();
             if (agent == null || agent->InfoProxyFreeCompany == null)
                 return "You must be in a Free Company to activate FC actions.";
 
-            var sheet = dataManager.GetExcelSheet<FreeCompanyAction>();
-            if (sheet == null)
-                return "Could not load FC action data.";
-
-            var action = sheet.GetRow(actionId);
-            if (action.RowId == 0)
+            if (!StaticFCActions.TryGetValue(actionId, out var action))
                 return $"FC Action with ID {actionId} not found.";
 
             var activeActions = GetActiveActions();
@@ -198,7 +199,7 @@ namespace Dalamud.DiscordBridge
 
         public string? DeactivateAction(uint actionId)
         {
-            if (clientState.LocalPlayer == null)
+            if (objectTable.LocalPlayer == null)
                 return "You must be logged in to deactivate FC actions.";
 
             var agent = GetFCAgent();
@@ -257,27 +258,28 @@ namespace Dalamud.DiscordBridge
 
         private void OpenFCMenu()
         {
-            var agent = (AgentInterface*)gameGui.FindAgentInterface("FreeCompany");
-            if (agent == null)
+            var agentPtr = gameGui.FindAgentInterface("FreeCompany");
+            if (agentPtr == IntPtr.Zero)
             {
                 Service.Logger.Error("Could not find FreeCompany agent");
                 return;
             }
 
+            var agent = (AgentInterface*)agentPtr;
             agent->Show();
             Service.Logger.Information("Opened FC menu");
         }
 
         private void NavigateToActionsTab()
         {
-            var addon = gameGui.GetAddonByName("FreeCompany");
-            if (addon == IntPtr.Zero)
+            var addonPtr = gameGui.GetAddonByName("FreeCompany");
+            if (addonPtr == IntPtr.Zero)
             {
                 Service.Logger.Warning("FC menu addon not found");
                 return;
             }
 
-            var unitBase = (AtkUnitBase*)addon;
+            var unitBase = (AtkUnitBase*)addonPtr;
             if (unitBase == null || !unitBase->IsVisible)
             {
                 Service.Logger.Warning("FC menu not visible");
@@ -296,14 +298,14 @@ namespace Dalamud.DiscordBridge
 
         private void SelectAndActivateAction(uint actionId)
         {
-            var addon = gameGui.GetAddonByName("FreeCompany");
-            if (addon == IntPtr.Zero)
+            var addonPtr = gameGui.GetAddonByName("FreeCompany");
+            if (addonPtr == IntPtr.Zero)
             {
                 Service.Logger.Warning("FC menu addon not found for activation");
                 return;
             }
 
-            var unitBase = (AtkUnitBase*)addon;
+            var unitBase = (AtkUnitBase*)addonPtr;
             if (unitBase == null || !unitBase->IsVisible)
             {
                 Service.Logger.Warning("FC menu not visible for activation");
@@ -321,10 +323,10 @@ namespace Dalamud.DiscordBridge
 
             framework.RunOnTick(() =>
             {
-                var confirmAddon = gameGui.GetAddonByName("SelectYesno");
-                if (confirmAddon != IntPtr.Zero)
+                var confirmAddonPtr = gameGui.GetAddonByName("SelectYesno");
+                if (confirmAddonPtr != IntPtr.Zero)
                 {
-                    var confirmBase = (AtkUnitBase*)confirmAddon;
+                    var confirmBase = (AtkUnitBase*)confirmAddonPtr;
                     if (confirmBase != null && confirmBase->IsVisible)
                     {
                         var confirmValues = stackalloc AtkValue[1];
@@ -339,14 +341,14 @@ namespace Dalamud.DiscordBridge
 
         private void SelectAndDeactivateAction(uint actionId)
         {
-            var addon = gameGui.GetAddonByName("FreeCompany");
-            if (addon == IntPtr.Zero)
+            var addonPtr = gameGui.GetAddonByName("FreeCompany");
+            if (addonPtr == IntPtr.Zero)
             {
                 Service.Logger.Warning("FC menu addon not found for deactivation");
                 return;
             }
 
-            var unitBase = (AtkUnitBase*)addon;
+            var unitBase = (AtkUnitBase*)addonPtr;
             if (unitBase == null || !unitBase->IsVisible)
             {
                 Service.Logger.Warning("FC menu not visible for deactivation");
@@ -364,10 +366,10 @@ namespace Dalamud.DiscordBridge
 
             framework.RunOnTick(() =>
             {
-                var confirmAddon = gameGui.GetAddonByName("SelectYesno");
-                if (confirmAddon != IntPtr.Zero)
+                var confirmAddonPtr = gameGui.GetAddonByName("SelectYesno");
+                if (confirmAddonPtr != IntPtr.Zero)
                 {
-                    var confirmBase = (AtkUnitBase*)confirmAddon;
+                    var confirmBase = (AtkUnitBase*)confirmAddonPtr;
                     if (confirmBase != null && confirmBase->IsVisible)
                     {
                         var confirmValues = stackalloc AtkValue[1];
