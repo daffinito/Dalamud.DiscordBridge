@@ -15,6 +15,7 @@ namespace Dalamud.DiscordBridge
         [PluginService] internal static IFramework Framework { get; private set; } = null!;
         [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
         [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
+        [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
     }
 }
 
