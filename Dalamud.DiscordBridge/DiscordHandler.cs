@@ -764,6 +764,24 @@ namespace Dalamud.DiscordBridge
                     return;
                 }
 
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "toggledisconnect" &&
+                    await EnsureOwner(message.Author, message.Channel))
+                {
+                    if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
+                        config = new DiscordChannelConfig();
+
+                    config.IsDisconnectNotification = !config.IsDisconnectNotification;
+
+                    this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
+                    this.plugin.Config.Save();
+
+                    await SendGenericEmbed(message.Channel,
+                        $"OK! This channel has been {(config.IsDisconnectNotification ? "enabled" : "disabled")} from receiving disconnect notifications.",
+                        "Disconnect Notifications set", EmbedColorFine);
+
+                    return;
+                }
+
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "toggleembed" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
@@ -1053,6 +1071,7 @@ namespace Dalamud.DiscordBridge
                                                                                              "Supported kinds: say, s, fc, p, a, shout, sh, yell, y, tell, t, ls1-8, cwls1-8, e, echo, nn.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledefaultnameavatar","Enable or disable sending webhook messages using your configured bot's name and the default bot avatar.\n**WARNING:**This should be combined with enabling the `togglesender` function or you will be removing any distinction between different player messages.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledf", "Enable or disable sending duty finder updates to this channel.")
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledisconnect", "Enable or disable sending disconnect notifications to this channel.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggleembed", "Enable or disable sending messages as Webhooks (default) or Embeds (Fallback mode)")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}togglesender", "Enable or disable sending messages with the sender name in the message.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setduplicatems", "Set time in milliseconds that the bot will check to see if any past messages were the same. Default is 0 ms.")
@@ -1529,6 +1548,75 @@ namespace Dalamud.DiscordBridge
                 }
 
                 
+            }
+        }
+
+        public async Task SendDisconnectEvent()
+        {
+            var applicableChannels =
+                this.plugin.Config.ChannelConfigs.Where(x => x.Value.IsDisconnectNotification);
+
+            if (!applicableChannels.Any())
+                return;
+
+            var embedBuilder = new EmbedBuilder()
+                .WithCurrentTimestamp()
+                .WithColor(0xFF0000)
+                .WithTitle("FFXIV Disconnected")
+                .WithDescription("You have disconnected from FFXIV.")
+                .WithFooter(footer =>
+                {
+                    footer
+                        .WithText("For: " + plugin.cachedLocalPlayer?.Name ?? "Unknown LocalPlayer")
+                        .WithIconUrl(Constant.LogoLink);
+                });
+
+            foreach (var channelConfig in applicableChannels)
+            {
+                var socketChannel = this.socketClient.GetChannel(channelConfig.Key);
+
+                if (socketChannel == null)
+                {
+                    Logger.Error("Could not find channel {0} for disconnect notification", channelConfig.Key);
+                    continue;
+                }
+
+                IGuildChannel guildChannel = (IGuildChannel)socketChannel;
+                IGuildUser guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
+                bool hasManageWebHooks = guildUser.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks);
+
+                if (socketChannel is SocketDMChannel)
+                {
+                    embedBuilder.WithAuthor(new EmbedAuthorBuilder {Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink});
+                    var DMChannel = await this.socketClient.GetDMChannelAsync(channelConfig.Key);
+                    await DMChannel.SendMessageAsync(embed: embedBuilder.Build());
+                }
+                else if (!hasManageWebHooks)
+                {
+                    Logger.Debug("FALLBACKMODE - Unable to create WebHook - No Permission\n");
+                    embedBuilder
+                        .WithAuthor(new EmbedAuthorBuilder { Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink })
+                        .WithDescription("FALLBACKMODE - Unable to create WebHook - Missing ManageWebHook permission.");
+                    await ((ISocketMessageChannel)socketChannel).SendMessageAsync(embed: embedBuilder.Build());
+                }
+                else
+                {
+                    var webhookClient = await GetOrCreateWebhookClient(socketChannel);
+
+                    if (webhookClient != null)
+                    {
+                        await webhookClient.SendMessageAsync(embeds: [embedBuilder.Build()],
+                    username: "Dalamud Chat Bridge", avatarUrl: Constant.LogoLink);
+                    }
+                    else
+                    {
+                        Logger.Debug("FALLBACKMODE - Unable to create WebHook - Unknown error\n");
+                        embedBuilder
+                            .WithAuthor(new EmbedAuthorBuilder { Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink })
+                            .WithDescription("FALLBACKMODE - Unable to create WebHook - Unknown failure");
+                        await ((ISocketMessageChannel)socketChannel).SendMessageAsync(embed: embedBuilder.Build());
+                    }
+                }
             }
         }
 

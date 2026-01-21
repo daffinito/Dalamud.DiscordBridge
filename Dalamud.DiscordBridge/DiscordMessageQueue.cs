@@ -272,7 +272,17 @@ namespace Dalamud.DiscordBridge
                                 Logger.Error(e, "Could not send discord message.");
                             }
 
-                        
+                        if (resultEvent is QueuedDisconnectEvent)
+                            try
+                            {
+                                await this.Plugin.Discord.SendDisconnectEvent();
+                            }
+                            catch (Exception e)
+                            {
+                                Logger.Error(e, "Could not send discord disconnect message.");
+                            }
+
+
                     }
                     catch (Exception e)
                     {

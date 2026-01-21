@@ -133,6 +133,9 @@ namespace Dalamud.DiscordBridge
             //     The success/failure code
 
             cachedLocalPlayer = null;
+
+            this.Discord.MessageQueue.Enqueue(new QueuedDisconnectEvent());
+
             await this.Discord.SetIdlePresence();
             // this.Discord.Dispose();
             // this.Discord = new DiscordHandler(this);

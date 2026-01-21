@@ -9,6 +9,7 @@ namespace Dalamud.DiscordBridge.Model
         public ulong WebhookId { get; set; }
         public bool IsBidirectional { get; set; }
         public bool IsContentFinder { get; set; }
+        public bool IsDisconnectNotification { get; set; }
 
         public void SetUnique(XivChatType type)
         {
