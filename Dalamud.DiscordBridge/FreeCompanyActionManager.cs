@@ -306,14 +306,11 @@ namespace Dalamud.DiscordBridge
                 return;
             }
 
-            var values = stackalloc AtkValue[2];
-            values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-            values[0].Int = 0;
-            values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-            values[1].Int = 2;
+            Service.Logger.Information($"UnitBase ID: {unitBase->ID}, Name: {unitBase->NameString}, IsReady: {unitBase->IsReady}");
+            Service.Logger.Information("Attempting tab navigation with multiple patterns...");
 
-            unitBase->FireCallback(2, values);
-            Service.Logger.Information("Navigated to FC Actions tab");
+            unitBase->FireCallbackInt(2);
+            Service.Logger.Information("Sent FireCallbackInt(2) - Actions tab");
         }
 
         private void SelectAndActivateAction(uint actionId)
@@ -332,14 +329,10 @@ namespace Dalamud.DiscordBridge
                 return;
             }
 
-            var values = stackalloc AtkValue[2];
-            values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-            values[0].Int = 3;
-            values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-            values[1].Int = (int)actionId;
+            Service.Logger.Information($"Attempting to activate action {actionId}...");
 
-            unitBase->FireCallback(2, values);
-            Service.Logger.Information($"Activated FC action {actionId}");
+            unitBase->FireCallbackInt((int)actionId);
+            Service.Logger.Information($"Sent FireCallbackInt({actionId})");
 
             framework.RunOnTick(() =>
             {
@@ -349,11 +342,8 @@ namespace Dalamud.DiscordBridge
                     var confirmBase = (AtkUnitBase*)confirmAddonWrapper.Address;
                     if (confirmBase != null && confirmBase->IsVisible)
                     {
-                        var confirmValues = stackalloc AtkValue[1];
-                        confirmValues[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-                        confirmValues[0].Int = 0;
-                        confirmBase->FireCallback(1, confirmValues);
-                        Service.Logger.Information("Confirmed FC action activation");
+                        confirmBase->FireCallbackInt(0);
+                        Service.Logger.Information("Confirmed FC action (clicked Yes)");
                     }
                 }
             }, TimeSpan.FromMilliseconds(100));
