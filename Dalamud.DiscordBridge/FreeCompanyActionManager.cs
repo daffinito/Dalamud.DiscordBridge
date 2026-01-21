@@ -258,6 +258,17 @@ namespace Dalamud.DiscordBridge
 
         private void OpenFCMenu()
         {
+            var addonWrapper = gameGui.GetAddonByName("FreeCompany");
+            if (addonWrapper.Address != IntPtr.Zero)
+            {
+                var unitBase = (AtkUnitBase*)addonWrapper.Address;
+                if (unitBase != null && unitBase->IsVisible)
+                {
+                    Service.Logger.Information("FC menu already open, skipping Show()");
+                    return;
+                }
+            }
+
             var fcAgent = GetFCAgent();
             if (fcAgent == null)
             {
@@ -307,10 +318,27 @@ namespace Dalamud.DiscordBridge
             }
 
             Service.Logger.Information($"UnitBase Id: {unitBase->Id}, Name: {unitBase->NameString}, IsReady: {unitBase->IsReady}");
-            Service.Logger.Information("Attempting tab navigation with multiple patterns...");
+            Service.Logger.Information("Attempting tab navigation...");
 
-            unitBase->FireCallbackInt(2);
-            Service.Logger.Information("Sent FireCallbackInt(2) - Actions tab");
+            var values = stackalloc AtkValue[2];
+            values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+            values[0].Int = 12;
+            values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+            values[1].Int = 2;
+
+            Service.Logger.Information("Pattern: FireCallback(2, [12, 2]) - event 12, tab 2");
+            unitBase->FireCallback(2, values);
+
+            framework.RunOnTick(() =>
+            {
+                Service.Logger.Information("Checking if tab switched...");
+                var checkWrapper = gameGui.GetAddonByName("FreeCompany");
+                if (checkWrapper.Address != IntPtr.Zero)
+                {
+                    var checkBase = (AtkUnitBase*)checkWrapper.Address;
+                    Service.Logger.Information($"After tab callback - IsVisible: {checkBase->IsVisible}, IsReady: {checkBase->IsReady}");
+                }
+            }, TimeSpan.FromMilliseconds(100));
         }
 
         private void SelectAndActivateAction(uint actionId)
@@ -331,8 +359,25 @@ namespace Dalamud.DiscordBridge
 
             Service.Logger.Information($"Attempting to activate action {actionId}...");
 
-            unitBase->FireCallbackInt((int)actionId);
-            Service.Logger.Information($"Sent FireCallbackInt({actionId})");
+            var values = stackalloc AtkValue[2];
+            values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+            values[0].Int = 12;
+            values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+            values[1].Int = (int)actionId;
+
+            Service.Logger.Information($"Pattern: FireCallback(2, [12, {actionId}]) - select action");
+            unitBase->FireCallback(2, values);
+
+            framework.RunOnTick(() =>
+            {
+                Service.Logger.Information("Attempting to click activate button...");
+                var activateValues = stackalloc AtkValue[1];
+                activateValues[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+                activateValues[0].Int = 0;
+
+                Service.Logger.Information("Pattern: FireCallback(1, [0]) - activate button");
+                unitBase->FireCallback(1, activateValues);
+            }, TimeSpan.FromMilliseconds(100));
 
             framework.RunOnTick(() =>
             {
