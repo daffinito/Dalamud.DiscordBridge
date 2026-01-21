@@ -12,8 +12,8 @@ namespace Dalamud.DiscordBridge.API
         private const string LabelProviderApiVersion = "DiscordBridge.APIVersion";
         private const string LabelProviderSendMessage = "DiscordBridge.SendMessage";
 
-        private readonly ICallGateProvider<int> providerAPIVersion;
-        private readonly ICallGateProvider<string, string, string, object> providerSendMessage;
+        private readonly ICallGateProvider<int> providerAPIVersion = null!;
+        private readonly ICallGateProvider<string, string, string, object> providerSendMessage = null!;
 
         public DiscordBridgeProvider(IDalamudPluginInterface pluginInterface, IDiscordBridgeAPI api)
         {

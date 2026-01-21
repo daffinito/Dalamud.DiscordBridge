@@ -8,7 +8,7 @@ namespace Dalamud.DiscordBridge.XivApi
 {
     public class CharacterResult
     {
-        public string AvatarUrl { get; set; }
-        public string LodestoneId { get; set; }
+        public required string AvatarUrl { get; set; }
+        public required string LodestoneId { get; set; }
     }
 }

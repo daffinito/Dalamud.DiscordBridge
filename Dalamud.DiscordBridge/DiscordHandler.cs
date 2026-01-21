@@ -90,7 +90,7 @@ namespace Dalamud.DiscordBridge
         /// </summary>
         public readonly DiscordMessageQueue MessageQueue;
 
-        private LodestoneClient lodestoneClient;
+        private LodestoneClient lodestoneClient = null!;
 
         public DiscordHandler(DiscordBridgePlugin plugin)
         {
@@ -178,7 +178,7 @@ namespace Dalamud.DiscordBridge
 
         }
 
-        private string GetXivCommandForDiscordCommand(string discordCommand)
+        private string? GetXivCommandForDiscordCommand(string discordCommand)
         {
             return discordCommand.ToLower() switch
             {
@@ -264,8 +264,7 @@ namespace Dalamud.DiscordBridge
                         }
                         else
                         {
-                            var fullMessage = $"[{senderDisplayName}] {chatMessage}";
-                            finalCommand = $"{xivCommand} {fullMessage}";
+                            finalCommand = $"{xivCommand} {chatMessage}";
                         }
 
                         
@@ -273,7 +272,7 @@ namespace Dalamud.DiscordBridge
                         
                         try
                         {
-                            Service.Framework.RunOnFrameworkThread(() =>
+                            _ = Service.Framework.RunOnFrameworkThread(() =>
                             {
                                 Logger.Information($"[Framework Thread] Sending message to chatbox: '{finalCommand}'");
                                 this.chatSender.SendMessage(finalCommand);
@@ -1170,7 +1169,7 @@ namespace Dalamud.DiscordBridge
         /// <param name="user">User in question.</param>
         /// <param name="errorMessageChannel">Channel for error message.</param>
         /// <returns>True if the user is the owner of this plugin.</returns>
-        private async Task<bool> EnsureOwner(IUser user, ISocketMessageChannel errorMessageChannel = null)
+        private async Task<bool> EnsureOwner(IUser user, ISocketMessageChannel? errorMessageChannel = null)
         {
             Logger.Verbose("EnsureOwner: " + user.Username + "#" + user.Discriminator);
             if (user.Username + "#" + user.Discriminator == this.plugin.Config.DiscordOwnerName) 
@@ -1205,7 +1204,10 @@ namespace Dalamud.DiscordBridge
             
             Logger.Information($"Retainer sold itemID: {itemId} with iconurl: {iconurl}");
 
-            this.plugin.Config.PrefixConfigs.TryGetValue(chatType, out var prefix);
+            if (!this.plugin.Config.PrefixConfigs.TryGetValue(chatType, out var prefix))
+            {
+                prefix = string.Empty;
+            }
 
             foreach (var channelConfig in applicableChannels)
             {
@@ -1219,8 +1221,8 @@ namespace Dalamud.DiscordBridge
 
                 // add handling for webhook vs embed here
                 IGuildChannel guildChannel = (IGuildChannel)socketChannel;
-                IGuildUser guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
-                bool hasManageWebHooks = guildUser.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks);
+                IGuildUser? guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
+                bool hasManageWebHooks = guildUser?.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks) ?? false;
 
                 if (socketChannel is SocketDMChannel)
                 {
@@ -1252,7 +1254,7 @@ namespace Dalamud.DiscordBridge
 
         }
 
-        public async Task SendChatEvent(string message, string senderName, string senderWorld, XivChatType chatType, string avatarUrl = "")
+        public async Task SendChatEvent(string message, string senderName, string? senderWorld, XivChatType chatType, string avatarUrl = "")
         {
             // set fields for true chat messages or custom via ipc
             if (chatType != XivChatTypeExtensions.IpcChatType)
@@ -1270,12 +1272,14 @@ namespace Dalamud.DiscordBridge
             // default avatar url to logo link if empty
             if (string.IsNullOrEmpty(avatarUrl))
             {
-                
-                if (!plugin.Config.ChatTypeAvatarURL.TryGetValue(chatType, out avatarUrl))
+                if (!plugin.Config.ChatTypeAvatarURL.TryGetValue(chatType, out var chatTypeAvatar) || string.IsNullOrEmpty(chatTypeAvatar))
                 {
-                    avatarUrl = plugin.Config.DefaultAvatarURL;
+                    avatarUrl = plugin.Config.DefaultAvatarURL ?? Constant.LogoLink;
                 }
-                
+                else
+                {
+                    avatarUrl = chatTypeAvatar;
+                }
             }
 
             var applicableChannels =
@@ -1333,10 +1337,10 @@ namespace Dalamud.DiscordBridge
                             var playerCacheName = $"{senderName}＠{senderWorld}";
                             Logger.Debug($"Searching for {playerCacheName}");
                             
-                            if (CachedResponses.TryGetValue(playerCacheName, out LodestoneCharacter lschar))
+                            if (CachedResponses.TryGetValue(playerCacheName, out LodestoneCharacter? lschar) && lschar != null)
                             {
-                                Logger.Debug($"Retrived cached data for {lschar.Name} {lschar.Avatar}");
-                                avatarUrl = lschar.Avatar.ToString();
+                                Logger.Debug($"Retrived cached data for {lschar!.Name} {lschar!.Avatar}");
+                                avatarUrl = lschar!.Avatar!.ToString();
                             }
                             else
                             {
@@ -1345,20 +1349,22 @@ namespace Dalamud.DiscordBridge
                                 var searchPage = await lodestoneClient.SearchCharacter(new CharacterSearchQuery
                                 {
                                     CharacterName = senderName,
-                                    World = senderWorld,
+                                    World = senderWorld ?? string.Empty,
                                 });
 
-                                var matchingEntry = searchPage.Results.FirstOrDefault(result => result.Name == senderName);
+                                var matchingEntry = searchPage?.Results?.FirstOrDefault(result => result.Name == senderName);
                                 if (matchingEntry == null)
                                 {
                                     break;
                                 }
-                                
-                                lschar = await matchingEntry.GetCharacter();
 
-                                CachedResponses.TryAdd(playerCacheName, lschar);
-                                Logger.Debug($"Adding cached data for {lschar.Name} {lschar.Avatar}");
-                                avatarUrl = lschar.Avatar.ToString();
+                                lschar = await matchingEntry.GetCharacter();
+                                if (lschar != null)
+                                {
+                                    CachedResponses.TryAdd(playerCacheName, lschar);
+                                    Logger.Debug($"Adding cached data for {lschar!.Name} {lschar!.Avatar}");
+                                    avatarUrl = lschar!.Avatar!.ToString();
+                                }
                             }
 
                             // avatarUrl = (await XivApiClient.GetCharacterSearch(senderName, senderWorld)).AvatarUrl;
@@ -1386,11 +1392,14 @@ namespace Dalamud.DiscordBridge
                 ? ""
                 : $"＠{senderWorld}");
 
-            this.plugin.Config.PrefixConfigs.TryGetValue(chatType, out var prefix);
+            if (!this.plugin.Config.PrefixConfigs.TryGetValue(chatType, out var prefix))
+            {
+                prefix = string.Empty;
+            }
 
             bool senderInMessage = this.plugin.Config.SenderInMessage;
 
-            var chatTypeText = this.plugin.Config.CustomSlugsConfigs.TryGetValue(chatType, out var x) ? x : chatType.GetSlug();
+            var chatTypeText = this.plugin.Config.CustomSlugsConfigs.TryGetValue(chatType, out var x) && x != null ? x : chatType.GetSlug();
             
 
             foreach (var channelConfig in applicableChannels)
@@ -1424,8 +1433,8 @@ namespace Dalamud.DiscordBridge
 
                 // add handling for webhook vs embed here
                 IGuildChannel guildChannel = (IGuildChannel)socketChannel;
-                IGuildUser guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
-                bool hasManageWebHooks = guildUser.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks);
+                IGuildUser? guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
+                bool hasManageWebHooks = guildUser?.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks) ?? false;
 
                 if (socketChannel is SocketDMChannel)
                 {
@@ -1456,7 +1465,7 @@ namespace Dalamud.DiscordBridge
                         if (this.plugin.Config.ForceDefaultNameAvatar)
                         {
                             displayName = this.socketClient.CurrentUser.Username.ToLower().Contains("discord") ? "Dalamud Chat Bridge" : this.socketClient.CurrentUser.Username;
-                            avatarUrl = plugin.Config.DefaultAvatarURL;
+                            avatarUrl = plugin.Config.DefaultAvatarURL ?? Constant.LogoLink;
                         }
                         
                         await webhookClient.SendMessageAsync(
@@ -1510,8 +1519,8 @@ namespace Dalamud.DiscordBridge
 
                 // add handling for webhook vs embed here
                 IGuildChannel guildChannel = (IGuildChannel)socketChannel;
-                IGuildUser guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
-                bool hasManageWebHooks = guildUser.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks);
+                IGuildUser? guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
+                bool hasManageWebHooks = guildUser?.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks) ?? false;
 
                 if (socketChannel is SocketDMChannel)
                 {
@@ -1625,7 +1634,7 @@ namespace Dalamud.DiscordBridge
         /// </summary>
         /// <param name="channel">The channel to get the webhook for</param>
         /// <returns><see cref="IWebhook"/> for the respective channel.</returns>
-        private async Task<DiscordWebhookClient> GetOrCreateWebhookClient(SocketChannel channel)
+        private async Task<DiscordWebhookClient?> GetOrCreateWebhookClient(SocketChannel channel)
         {
             if (channel is SocketTextChannel textChannel)
             {
@@ -1643,7 +1652,7 @@ namespace Dalamud.DiscordBridge
                     }
                     catch (Discord.Net.HttpException e)
                     {
-                        Logger.Error("Unable to get or create webhook", e.StackTrace);
+                        Logger.Error("Unable to get or create webhook", e.StackTrace ?? "No stack trace");
                         return null;
                     }
                 }

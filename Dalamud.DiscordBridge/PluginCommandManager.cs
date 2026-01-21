@@ -21,10 +21,10 @@ namespace Dalamud.DiscordBridge
             this.command = command;
             this.host = host;
 
-            this.pluginCommands = host.GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance)
+            this.pluginCommands = this.host!.GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance)
                 .Where(method => method.GetCustomAttribute<CommandAttribute>() != null)
                 .SelectMany(GetCommandInfoTuple)
-                .ToArray();
+                .ToArray() ?? Array.Empty<(string, CommandInfo)>();
 
             AddCommandHandlers();
         }
@@ -55,7 +55,7 @@ namespace Dalamud.DiscordBridge
         {
             var handlerDelegate = (HandlerDelegate)Delegate.CreateDelegate(typeof(HandlerDelegate), this.host, method);
 
-            var command = handlerDelegate.Method.GetCustomAttribute<CommandAttribute>();
+            var command = handlerDelegate.Method.GetCustomAttribute<CommandAttribute>()!;
             var aliases = handlerDelegate.Method.GetCustomAttribute<AliasesAttribute>();
             var helpMessage = handlerDelegate.Method.GetCustomAttribute<HelpMessageAttribute>();
             var doNotShowInHelp = handlerDelegate.Method.GetCustomAttribute<DoNotShowInHelpAttribute>();

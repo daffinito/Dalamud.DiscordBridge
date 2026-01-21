@@ -21,7 +21,7 @@ namespace Dalamud.DiscordBridge.XivApi
         /// <param name="name"></param>
         /// <param name="world"></param>
         /// <returns></returns>
-        public static async Task<CharacterResult> GetCharacterSearch(string name, string world)
+        public static async Task<CharacterResult?> GetCharacterSearch(string name, string world)
         {
             try
             {
@@ -65,8 +65,8 @@ namespace Dalamud.DiscordBridge.XivApi
 
             return new ItemResult
             {
-                Name = res?.Name,
-                Icon = res?.Icon,
+                Name = res?.Name ?? string.Empty,
+                Icon = res?.Icon ?? string.Empty,
             };
 
         }

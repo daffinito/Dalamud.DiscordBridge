@@ -8,7 +8,7 @@ namespace Dalamud.DiscordBridge.XivApi
 {
     public class ItemResult
     {
-        public string Name { get; set; }
-        public string Icon { get; set; }
+        public required string Name { get; set; }
+        public required string Icon { get; set; }
     }
 }

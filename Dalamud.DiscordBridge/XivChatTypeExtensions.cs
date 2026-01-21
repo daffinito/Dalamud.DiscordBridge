@@ -9,8 +9,8 @@ namespace Dalamud.DiscordBridge
     {
         public class XivChatTypeInfo
         {
-            public string Slug { get; set; }
-            public string FancyName { get; set; }
+            public required string Slug { get; set; }
+            public required string FancyName { get; set; }
         }
 
         public static XivChatType IpcChatType => (XivChatType)99; // using dummy code that isn't used by game
