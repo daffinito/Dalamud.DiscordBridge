@@ -233,13 +233,25 @@ namespace Dalamud.DiscordBridge
             {
                 OpenFCMenu();
 
-                Service.Logger.Information("=== CALLBACK LOGGING ACTIVE ===");
-                Service.Logger.Information($"FC menu opened. Now manually:");
-                Service.Logger.Information($"1. Click the 'Company Actions' tab");
-                Service.Logger.Information($"2. Click on action: {action.Name} (ID: {actionId})");
-                Service.Logger.Information($"3. Click 'Activate'");
-                Service.Logger.Information("All callbacks will be logged! Check /xllog after completing these steps.");
-                Service.Logger.Information("===============================");
+                framework.RunOnTick(() =>
+                {
+                    SwitchToActionsTab();
+
+                    framework.RunOnTick(() =>
+                    {
+                        ClickAction(actionId);
+
+                        framework.RunOnTick(() =>
+                        {
+                            ExecuteActionFromContextMenu();
+
+                            framework.RunOnTick(() =>
+                            {
+                                ConfirmYes();
+                            }, TimeSpan.FromMilliseconds(100));
+                        }, TimeSpan.FromMilliseconds(100));
+                    }, TimeSpan.FromMilliseconds(200));
+                }, TimeSpan.FromMilliseconds(500));
 
                 return null;
             }
@@ -317,6 +329,112 @@ namespace Dalamud.DiscordBridge
             var agentInterface = (AgentInterface*)fcAgent;
             agentInterface->Show();
             Service.Logger.Information("Opened FC menu");
+        }
+
+        private void SwitchToActionsTab()
+        {
+            var addonWrapper = gameGui.GetAddonByName("FreeCompany");
+            if (addonWrapper.Address == IntPtr.Zero)
+            {
+                Service.Logger.Warning("FC menu addon not found for tab switch");
+                return;
+            }
+
+            var unitBase = (AtkUnitBase*)addonWrapper.Address;
+            if (unitBase == null || !unitBase->IsVisible)
+            {
+                Service.Logger.Warning("FC menu not visible for tab switch");
+                return;
+            }
+
+            var values = stackalloc AtkValue[2];
+            values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+            values[0].Int = 0;
+            values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.UInt;
+            values[1].UInt = 4;
+
+            unitBase->FireCallback(2, values);
+            Service.Logger.Information("Switched to Actions tab (callback 2, [0, 4])");
+        }
+
+        private void ClickAction(uint actionId)
+        {
+            var addonWrapper = gameGui.GetAddonByName("FreeCompany");
+            if (addonWrapper.Address == IntPtr.Zero)
+            {
+                Service.Logger.Warning("FC menu addon not found for action click");
+                return;
+            }
+
+            var unitBase = (AtkUnitBase*)addonWrapper.Address;
+            if (unitBase == null || !unitBase->IsVisible)
+            {
+                Service.Logger.Warning("FC menu not visible for action click");
+                return;
+            }
+
+            var values = stackalloc AtkValue[2];
+            values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+            values[0].Int = 0;
+            values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.UInt;
+            values[1].UInt = actionId;
+
+            unitBase->FireCallback(3, values);
+            Service.Logger.Information($"Clicked action {actionId} (callback 3, [0, {actionId}])");
+        }
+
+        private void ExecuteActionFromContextMenu()
+        {
+            var contextWrapper = gameGui.GetAddonByName("ContextMenu");
+            if (contextWrapper.Address == IntPtr.Zero)
+            {
+                Service.Logger.Warning("ContextMenu addon not found");
+                return;
+            }
+
+            var unitBase = (AtkUnitBase*)contextWrapper.Address;
+            if (unitBase == null || !unitBase->IsVisible)
+            {
+                Service.Logger.Warning("ContextMenu not visible");
+                return;
+            }
+
+            var values = stackalloc AtkValue[5];
+            values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+            values[0].Int = 0;
+            values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+            values[1].Int = 0;
+            values[2].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.UInt;
+            values[2].UInt = 0;
+            values[3].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Undefined;
+            values[4].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Undefined;
+
+            unitBase->FireCallback(5, values);
+            Service.Logger.Information("Executed action from context menu (callback 5, [0, 0, 0, undefined, undefined])");
+        }
+
+        private void ConfirmYes()
+        {
+            var yesnoWrapper = gameGui.GetAddonByName("SelectYesno");
+            if (yesnoWrapper.Address == IntPtr.Zero)
+            {
+                Service.Logger.Warning("SelectYesno addon not found");
+                return;
+            }
+
+            var unitBase = (AtkUnitBase*)yesnoWrapper.Address;
+            if (unitBase == null || !unitBase->IsVisible)
+            {
+                Service.Logger.Warning("SelectYesno not visible");
+                return;
+            }
+
+            var values = stackalloc AtkValue[1];
+            values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+            values[0].Int = 0;
+
+            unitBase->FireCallback(1, values);
+            Service.Logger.Information("Confirmed Yes (callback 1, [0])");
         }
 
         private void NavigateToActionsTab()
