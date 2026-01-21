@@ -347,14 +347,64 @@ namespace Dalamud.DiscordBridge
                 return;
             }
 
-            var values = stackalloc AtkValue[2];
-            values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-            values[0].Int = 0;
-            values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.UInt;
-            values[1].UInt = 4;
+            var radioButton = FindRadioButtonForTab(unitBase, 4);
+            if (radioButton != null)
+            {
+                Service.Logger.Information($"Found Actions tab radio button, clicking it via ClickAddonComponent");
+                gameGui.ClickAddonComponent("FreeCompany", radioButton->AtkComponentBase.OwnerNode->NodeId, FFXIVClientStructs.FFXIV.Client.UI.Misc.EventType.CHANGE);
+            }
+            else
+            {
+                Service.Logger.Warning("Could not find Actions tab radio button component, falling back to callback");
+                var values = stackalloc AtkValue[2];
+                values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+                values[0].Int = 0;
+                values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.UInt;
+                values[1].UInt = 4;
 
-            unitBase->FireCallback(2, values);
-            Service.Logger.Information("Switched to Actions tab (callback 2, [0, 4])");
+                unitBase->FireCallback(2, values);
+                Service.Logger.Information("Switched to Actions tab via callback");
+            }
+        }
+
+        private AtkComponentRadioButton* FindRadioButtonForTab(AtkUnitBase* unitBase, int tabIndex)
+        {
+            if (unitBase->UldManager.NodeListCount == 0)
+                return null;
+
+            for (int i = 0; i < unitBase->UldManager.NodeListCount; i++)
+            {
+                var node = unitBase->UldManager.NodeList[i];
+                if (node == null || node->Type != FFXIVClientStructs.FFXIV.Component.GUI.NodeType.Component)
+                    continue;
+
+                var componentNode = (AtkComponentNode*)node;
+                if (componentNode->Component == null)
+                    continue;
+
+                for (int j = 0; j < componentNode->Component->UldManager.NodeListCount; j++)
+                {
+                    var childNode = componentNode->Component->UldManager.NodeList[j];
+                    if (childNode == null || childNode->Type != FFXIVClientStructs.FFXIV.Component.GUI.NodeType.Component)
+                        continue;
+
+                    var childComponentNode = (AtkComponentNode*)childNode;
+                    var component = childComponentNode->Component;
+
+                    if (component != null && component->Type == FFXIVClientStructs.FFXIV.Component.GUI.ComponentType.RadioButton)
+                    {
+                        var radioButton = (AtkComponentRadioButton*)component;
+                        Service.Logger.Information($"Found radio button at node {childNode->NodeId}, checking if it's tab {tabIndex}");
+
+                        if (j == tabIndex)
+                        {
+                            return radioButton;
+                        }
+                    }
+                }
+            }
+
+            return null;
         }
 
         private void ClickAction(uint actionId)
