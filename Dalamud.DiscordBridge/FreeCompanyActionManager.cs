@@ -248,10 +248,10 @@ namespace Dalamud.DiscordBridge
                             framework.RunOnTick(() =>
                             {
                                 ConfirmYes();
-                            }, TimeSpan.FromMilliseconds(100));
-                        }, TimeSpan.FromMilliseconds(100));
-                    }, TimeSpan.FromMilliseconds(200));
-                }, TimeSpan.FromMilliseconds(500));
+                            }, TimeSpan.FromMilliseconds(300));
+                        }, TimeSpan.FromMilliseconds(500));
+                    }, TimeSpan.FromMilliseconds(800));
+                }, TimeSpan.FromMilliseconds(800));
 
                 return null;
             }
