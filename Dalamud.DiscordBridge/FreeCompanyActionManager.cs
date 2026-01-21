@@ -180,13 +180,13 @@ namespace Dalamud.DiscordBridge
                             {
                                 Service.Logger.Error(ex, $"Failed to select/activate FC action {actionId}");
                             }
-                        }, TimeSpan.FromMilliseconds(150));
+                        }, TimeSpan.FromMilliseconds(250));
                     }
                     catch (Exception ex)
                     {
                         Service.Logger.Error(ex, "Failed to navigate to actions tab");
                     }
-                }, TimeSpan.FromMilliseconds(250));
+                }, TimeSpan.FromMilliseconds(500));
 
                 return null;
             }
@@ -230,13 +230,13 @@ namespace Dalamud.DiscordBridge
                             {
                                 Service.Logger.Error(ex, $"Failed to select/deactivate FC action {actionId}");
                             }
-                        }, TimeSpan.FromMilliseconds(150));
+                        }, TimeSpan.FromMilliseconds(250));
                     }
                     catch (Exception ex)
                     {
                         Service.Logger.Error(ex, "Failed to navigate to actions tab");
                     }
-                }, TimeSpan.FromMilliseconds(250));
+                }, TimeSpan.FromMilliseconds(500));
 
                 return null;
             }
@@ -258,31 +258,51 @@ namespace Dalamud.DiscordBridge
 
         private void OpenFCMenu()
         {
-            var agentWrapper = gameGui.FindAgentInterface("FreeCompany");
-            if (agentWrapper.Address == IntPtr.Zero)
+            var fcAgent = GetFCAgent();
+            if (fcAgent == null)
             {
                 Service.Logger.Error("Could not find FreeCompany agent");
                 return;
             }
 
-            var agent = (AgentInterface*)agentWrapper.Address;
-            agent->Show();
+            var agentInterface = (AgentInterface*)fcAgent;
+            agentInterface->Show();
             Service.Logger.Information("Opened FC menu");
         }
 
         private void NavigateToActionsTab()
         {
             var addonWrapper = gameGui.GetAddonByName("FreeCompany");
+            Service.Logger.Information($"GetAddonByName('FreeCompany') returned address: {addonWrapper.Address:X}");
+
             if (addonWrapper.Address == IntPtr.Zero)
             {
-                Service.Logger.Warning("FC menu addon not found");
-                return;
+                Service.Logger.Warning("FC menu addon not found - trying alternate names...");
+
+                var alternateNames = new[] { "FreeCompanyProfile", "FreeCompanyProfileCard", "FreeCompanyActions" };
+                foreach (var name in alternateNames)
+                {
+                    var altWrapper = gameGui.GetAddonByName(name);
+                    Service.Logger.Information($"Trying addon name '{name}': {altWrapper.Address:X}");
+                    if (altWrapper.Address != IntPtr.Zero)
+                    {
+                        Service.Logger.Information($"Found addon with name: {name}");
+                        addonWrapper = altWrapper;
+                        break;
+                    }
+                }
+
+                if (addonWrapper.Address == IntPtr.Zero)
+                {
+                    Service.Logger.Error("Could not find FC menu addon with any known name");
+                    return;
+                }
             }
 
             var unitBase = (AtkUnitBase*)addonWrapper.Address;
             if (unitBase == null || !unitBase->IsVisible)
             {
-                Service.Logger.Warning("FC menu not visible");
+                Service.Logger.Warning($"FC menu not visible. UnitBase null: {unitBase == null}, IsVisible: {(unitBase != null ? unitBase->IsVisible : false)}");
                 return;
             }
 
