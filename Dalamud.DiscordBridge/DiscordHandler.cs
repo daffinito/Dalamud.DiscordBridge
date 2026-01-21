@@ -890,10 +890,13 @@ namespace Dalamud.DiscordBridge
                     var actionName = action?.Name ?? $"Action {actionId}";
 
                     await SendGenericEmbed(message.Channel,
-                        $"Opening FC menu for **{actionName}** (ID: {actionId})...\n\n" +
-                        $"**Note:** Full automation is still in development. The FC menu will open, " +
-                        $"but you may need to manually navigate to the Actions tab and activate the action.\n\n" +
-                        $"Check the plugin logs (/xllog) to see if any automatic patterns worked!",
+                        $"✅ FC menu opened!\n\n" +
+                        $"**Activate:** {actionName} (ID: {actionId})\n\n" +
+                        $"Please complete activation manually:\n" +
+                        $"1️⃣ Click the **Company Actions** tab\n" +
+                        $"2️⃣ Select **{actionName}** from the list\n" +
+                        $"3️⃣ Click **Activate**\n\n" +
+                        $"_Full automation coming soon!_",
                         "Enable FC Action", EmbedColorFine);
                     return;
                 }
@@ -931,7 +934,13 @@ namespace Dalamud.DiscordBridge
                     var actionName = action?.Name ?? $"Action {actionId}";
 
                     await SendGenericEmbed(message.Channel,
-                        $"Deactivating **{actionName}**...\n\nThis may take a few seconds.",
+                        $"✅ FC menu opened!\n\n" +
+                        $"**Deactivate:** {actionName} (ID: {actionId})\n\n" +
+                        $"Please complete deactivation manually:\n" +
+                        $"1️⃣ Click the **Company Actions** tab\n" +
+                        $"2️⃣ Right-click **{actionName}** in the active list\n" +
+                        $"3️⃣ Confirm deactivation\n\n" +
+                        $"_Full automation coming soon!_",
                         "Disable FC Action", EmbedColorFine);
                     return;
                 }

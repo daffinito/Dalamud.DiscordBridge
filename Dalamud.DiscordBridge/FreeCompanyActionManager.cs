@@ -5,20 +5,81 @@ using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Dalamud.Hooking;
 
 namespace Dalamud.DiscordBridge
 {
-    internal unsafe class FreeCompanyActionManager
+    internal unsafe class FreeCompanyActionManager : IDisposable
     {
         private readonly IGameGui gameGui;
         private readonly IFramework framework;
         private readonly IObjectTable objectTable;
+        private readonly IGameInteropProvider interop;
 
-        public FreeCompanyActionManager(IDataManager dataManager, IGameGui gameGui, IFramework framework, IObjectTable objectTable)
+        private delegate void FireCallbackDelegate(AtkUnitBase* unitBase, int valueCount, AtkValue* values, byte updateState);
+        private Hook<FireCallbackDelegate>? fireCallbackHook;
+
+        public FreeCompanyActionManager(IDataManager dataManager, IGameGui gameGui, IFramework framework, IObjectTable objectTable, IGameInteropProvider interop)
         {
             this.gameGui = gameGui;
             this.framework = framework;
             this.objectTable = objectTable;
+            this.interop = interop;
+
+            InitializeCallbackHook();
+        }
+
+        private void InitializeCallbackHook()
+        {
+            try
+            {
+                var fireCallbackAddress = (nint)AtkUnitBase.Addresses.FireCallback.Value;
+                if (fireCallbackAddress != IntPtr.Zero)
+                {
+                    fireCallbackHook = interop.HookFromAddress<FireCallbackDelegate>(fireCallbackAddress, FireCallbackDetour);
+                    fireCallbackHook?.Enable();
+                    Service.Logger.Information("FC Action callback hook initialized successfully");
+                }
+                else
+                {
+                    Service.Logger.Warning("Could not find FireCallback address for hooking");
+                }
+            }
+            catch (Exception ex)
+            {
+                Service.Logger.Error(ex, "Failed to initialize callback hook");
+            }
+        }
+
+        private void FireCallbackDetour(AtkUnitBase* unitBase, int valueCount, AtkValue* values, byte updateState)
+        {
+            try
+            {
+                if (unitBase != null && unitBase->NameString == "FreeCompany")
+                {
+                    Service.Logger.Information("=== FC CALLBACK DETECTED ===");
+                    Service.Logger.Information($"UnitBase: {unitBase->NameString}, ValueCount: {valueCount}, UpdateState: {updateState}");
+
+                    for (int i = 0; i < valueCount && i < 10; i++)
+                    {
+                        var value = values[i];
+                        Service.Logger.Information($"  Value[{i}]: Type={value.Type}, Int={value.Int}, UInt={value.UInt}, Bool={value.Byte}");
+                    }
+
+                    Service.Logger.Information("===========================");
+                }
+            }
+            catch (Exception ex)
+            {
+                Service.Logger.Error(ex, "Error in callback detour");
+            }
+
+            fireCallbackHook!.Original(unitBase, valueCount, values, updateState);
+        }
+
+        public void Dispose()
+        {
+            fireCallbackHook?.Dispose();
         }
 
         public class FCActionInfo
@@ -164,36 +225,20 @@ namespace Dalamud.DiscordBridge
             {
                 OpenFCMenu();
 
-                framework.RunOnTick(() =>
-                {
-                    try
-                    {
-                        NavigateToActionsTab();
-
-                        framework.RunOnTick(() =>
-                        {
-                            try
-                            {
-                                SelectAndActivateAction(actionId);
-                            }
-                            catch (Exception ex)
-                            {
-                                Service.Logger.Error(ex, $"Failed to select/activate FC action {actionId}");
-                            }
-                        }, TimeSpan.FromMilliseconds(250));
-                    }
-                    catch (Exception ex)
-                    {
-                        Service.Logger.Error(ex, "Failed to navigate to actions tab");
-                    }
-                }, TimeSpan.FromMilliseconds(500));
+                Service.Logger.Information("=== CALLBACK LOGGING ACTIVE ===");
+                Service.Logger.Information($"FC menu opened. Now manually:");
+                Service.Logger.Information($"1. Click the 'Company Actions' tab");
+                Service.Logger.Information($"2. Click on action: {action.Name} (ID: {actionId})");
+                Service.Logger.Information($"3. Click 'Activate'");
+                Service.Logger.Information("All callbacks will be logged! Check /xllog after completing these steps.");
+                Service.Logger.Information("===============================");
 
                 return null;
             }
             catch (Exception ex)
             {
-                Service.Logger.Error(ex, $"Failed to activate FC action {actionId}");
-                return $"Failed to activate action: {ex.Message}";
+                Service.Logger.Error(ex, $"Failed to open FC menu for action {actionId}");
+                return $"Failed to open FC menu: {ex.Message}";
             }
         }
 
@@ -207,43 +252,28 @@ namespace Dalamud.DiscordBridge
                 return "You must be in a Free Company to deactivate FC actions.";
 
             var activeActions = GetActiveActions();
-            if (!activeActions.Any(a => a.Id == actionId))
+            var action = activeActions.FirstOrDefault(a => a.Id == actionId);
+            if (action == null)
                 return "That FC action is not currently active.";
 
             try
             {
                 OpenFCMenu();
 
-                framework.RunOnTick(() =>
-                {
-                    try
-                    {
-                        NavigateToActionsTab();
-
-                        framework.RunOnTick(() =>
-                        {
-                            try
-                            {
-                                SelectAndDeactivateAction(actionId);
-                            }
-                            catch (Exception ex)
-                            {
-                                Service.Logger.Error(ex, $"Failed to select/deactivate FC action {actionId}");
-                            }
-                        }, TimeSpan.FromMilliseconds(250));
-                    }
-                    catch (Exception ex)
-                    {
-                        Service.Logger.Error(ex, "Failed to navigate to actions tab");
-                    }
-                }, TimeSpan.FromMilliseconds(500));
+                Service.Logger.Information("=== CALLBACK LOGGING ACTIVE ===");
+                Service.Logger.Information($"FC menu opened. Now manually:");
+                Service.Logger.Information($"1. Click the 'Company Actions' tab");
+                Service.Logger.Information($"2. Right-click on action: {action.Name} (ID: {actionId})");
+                Service.Logger.Information($"3. Select 'Deactivate' and confirm");
+                Service.Logger.Information("All callbacks will be logged! Check /xllog after completing these steps.");
+                Service.Logger.Information("===============================");
 
                 return null;
             }
             catch (Exception ex)
             {
-                Service.Logger.Error(ex, $"Failed to deactivate FC action {actionId}");
-                return $"Failed to deactivate action: {ex.Message}";
+                Service.Logger.Error(ex, $"Failed to open FC menu for deactivation {actionId}");
+                return $"Failed to open FC menu: {ex.Message}";
             }
         }
 
@@ -280,8 +310,8 @@ namespace Dalamud.DiscordBridge
             agentInterface->Show();
             Service.Logger.Information("Opened FC menu");
         }
-
-        private void NavigateToActionsTab()
+    }
+}
         {
             var addonWrapper = gameGui.GetAddonByName("FreeCompany");
             Service.Logger.Information($"GetAddonByName('FreeCompany') returned address: {addonWrapper.Address:X}");
@@ -318,41 +348,13 @@ namespace Dalamud.DiscordBridge
             }
 
             Service.Logger.Information($"UnitBase Id: {unitBase->Id}, Name: {unitBase->NameString}, IsReady: {unitBase->IsReady}");
-            Service.Logger.Information("Trying multiple tab navigation patterns...");
-
-            var patterns = new[] {
-                (argCount: 1, event1: 2, event2: 0),
-                (argCount: 2, event1: 0, event2: 2),
-                (argCount: 2, event1: 1, event2: 2),
-                (argCount: 2, event1: 2, event2: 2),
-                (argCount: 2, event1: 3, event2: 2),
-                (argCount: 2, event1: 4, event2: 2),
-                (argCount: 2, event1: 12, event2: 2)
-            };
-
-            foreach (var pattern in patterns)
-            {
-                if (pattern.argCount == 1)
-                {
-                    Service.Logger.Information($"Trying: FireCallbackInt({pattern.event1})");
-                    unitBase->FireCallbackInt(pattern.event1);
-                }
-                else
-                {
-                    var values = stackalloc AtkValue[2];
-                    values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-                    values[0].Int = pattern.event1;
-                    values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-                    values[1].Int = pattern.event2;
-
-                    Service.Logger.Information($"Trying: FireCallback(2, [{pattern.event1}, {pattern.event2}])");
-                    unitBase->FireCallback(2, values);
-                }
-
-                System.Threading.Thread.Sleep(50);
-            }
-
-            Service.Logger.Information("Finished trying tab patterns. Manually check if any worked.");
+            Service.Logger.Information("FC menu opened successfully.");
+            Service.Logger.Information("=== MANUAL ACTIVATION REQUIRED ===");
+            Service.Logger.Information($"Please manually activate FC Action ID {0} by:");
+            Service.Logger.Information("1. Clicking the 'Company Actions' tab");
+            Service.Logger.Information("2. Selecting the desired action from the list");
+            Service.Logger.Information("3. Clicking the 'Activate' button");
+            Service.Logger.Information("=================================");
         }
 
         private void SelectAndActivateAction(uint actionId)

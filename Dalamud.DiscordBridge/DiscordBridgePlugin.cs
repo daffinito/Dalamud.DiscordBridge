@@ -66,7 +66,7 @@ namespace Dalamud.DiscordBridge
             }
 
 
-            this.FCActionManager = new FreeCompanyActionManager(Service.Data, Service.GameGui, Service.Framework, Service.ObjectTable);
+            this.FCActionManager = new FreeCompanyActionManager(Service.Data, Service.GameGui, Service.Framework, Service.ObjectTable, Service.GameInteropProvider);
             this.DiscordBridgeProvider = new DiscordBridgeProvider(pluginInterface, new DiscordBridgeAPI(this));
             this.Discord = new DiscordHandler(this);
             // Task t = this.Discord.Start(); // bot won't start if we just have this
@@ -254,6 +254,7 @@ namespace Dalamud.DiscordBridge
             this.Discord.Dispose();
 
             this.commandManager.Dispose();
+            this.FCActionManager?.Dispose();
 
             Service.Interface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
 
@@ -262,9 +263,9 @@ namespace Dalamud.DiscordBridge
             Service.Interface.UiBuilder.Draw -= this.ui.Draw;
 
             Service.State.CfPop -= this.ClientStateOnCfPop;
-            
+
             Service.State.Login -= OnLoginEvent;
-            
+
             Service.State.Logout -= OnLogoutEvent;
         }
 
