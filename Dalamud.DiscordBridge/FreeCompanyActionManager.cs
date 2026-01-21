@@ -258,28 +258,28 @@ namespace Dalamud.DiscordBridge
 
         private void OpenFCMenu()
         {
-            var agentPtr = gameGui.FindAgentInterface("FreeCompany");
-            if (agentPtr == IntPtr.Zero)
+            var agentWrapper = gameGui.FindAgentInterface("FreeCompany");
+            if (agentWrapper.Address == IntPtr.Zero)
             {
                 Service.Logger.Error("Could not find FreeCompany agent");
                 return;
             }
 
-            var agent = (AgentInterface*)agentPtr;
+            var agent = (AgentInterface*)agentWrapper.Address;
             agent->Show();
             Service.Logger.Information("Opened FC menu");
         }
 
         private void NavigateToActionsTab()
         {
-            var addonPtr = gameGui.GetAddonByName("FreeCompany");
-            if (addonPtr == IntPtr.Zero)
+            var addonWrapper = gameGui.GetAddonByName("FreeCompany");
+            if (addonWrapper.Address == IntPtr.Zero)
             {
                 Service.Logger.Warning("FC menu addon not found");
                 return;
             }
 
-            var unitBase = (AtkUnitBase*)addonPtr;
+            var unitBase = (AtkUnitBase*)addonWrapper.Address;
             if (unitBase == null || !unitBase->IsVisible)
             {
                 Service.Logger.Warning("FC menu not visible");
@@ -298,14 +298,14 @@ namespace Dalamud.DiscordBridge
 
         private void SelectAndActivateAction(uint actionId)
         {
-            var addonPtr = gameGui.GetAddonByName("FreeCompany");
-            if (addonPtr == IntPtr.Zero)
+            var addonWrapper = gameGui.GetAddonByName("FreeCompany");
+            if (addonWrapper.Address == IntPtr.Zero)
             {
                 Service.Logger.Warning("FC menu addon not found for activation");
                 return;
             }
 
-            var unitBase = (AtkUnitBase*)addonPtr;
+            var unitBase = (AtkUnitBase*)addonWrapper.Address;
             if (unitBase == null || !unitBase->IsVisible)
             {
                 Service.Logger.Warning("FC menu not visible for activation");
@@ -323,10 +323,10 @@ namespace Dalamud.DiscordBridge
 
             framework.RunOnTick(() =>
             {
-                var confirmAddonPtr = gameGui.GetAddonByName("SelectYesno");
-                if (confirmAddonPtr != IntPtr.Zero)
+                var confirmAddonWrapper = gameGui.GetAddonByName("SelectYesno");
+                if (confirmAddonWrapper.Address != IntPtr.Zero)
                 {
-                    var confirmBase = (AtkUnitBase*)confirmAddonPtr;
+                    var confirmBase = (AtkUnitBase*)confirmAddonWrapper.Address;
                     if (confirmBase != null && confirmBase->IsVisible)
                     {
                         var confirmValues = stackalloc AtkValue[1];
@@ -341,14 +341,14 @@ namespace Dalamud.DiscordBridge
 
         private void SelectAndDeactivateAction(uint actionId)
         {
-            var addonPtr = gameGui.GetAddonByName("FreeCompany");
-            if (addonPtr == IntPtr.Zero)
+            var addonWrapper = gameGui.GetAddonByName("FreeCompany");
+            if (addonWrapper.Address == IntPtr.Zero)
             {
                 Service.Logger.Warning("FC menu addon not found for deactivation");
                 return;
             }
 
-            var unitBase = (AtkUnitBase*)addonPtr;
+            var unitBase = (AtkUnitBase*)addonWrapper.Address;
             if (unitBase == null || !unitBase->IsVisible)
             {
                 Service.Logger.Warning("FC menu not visible for deactivation");
@@ -366,10 +366,10 @@ namespace Dalamud.DiscordBridge
 
             framework.RunOnTick(() =>
             {
-                var confirmAddonPtr = gameGui.GetAddonByName("SelectYesno");
-                if (confirmAddonPtr != IntPtr.Zero)
+                var confirmAddonWrapper = gameGui.GetAddonByName("SelectYesno");
+                if (confirmAddonWrapper.Address != IntPtr.Zero)
                 {
-                    var confirmBase = (AtkUnitBase*)confirmAddonPtr;
+                    var confirmBase = (AtkUnitBase*)confirmAddonWrapper.Address;
                     if (confirmBase != null && confirmBase->IsVisible)
                     {
                         var confirmValues = stackalloc AtkValue[1];
