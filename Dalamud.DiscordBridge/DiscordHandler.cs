@@ -287,7 +287,8 @@ namespace Dalamud.DiscordBridge
                         return; // Handled
                     }
                 }
-                
+
+                Logger.Information("Checking config commands...");
                 var args = message.Content.Split();
 
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "togglebidirectional" &&
@@ -763,9 +764,19 @@ namespace Dalamud.DiscordBridge
                     return;
                 }
 
-                if (args[0] == this.plugin.Config.DiscordBotPrefix + "toggledisconnect" &&
-                    await EnsureOwner(message.Author, message.Channel))
+                Logger.Information($"Checking toggledisconnect. args[0] = '{args[0]}', expected = '{this.plugin.Config.DiscordBotPrefix + "toggledisconnect"}'");
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "toggledisconnect")
                 {
+                    Logger.Information("toggledisconnect command matched, checking owner...");
+                    var isOwner = await EnsureOwner(message.Author, message.Channel);
+                    Logger.Information($"EnsureOwner returned: {isOwner}");
+
+                    if (!isOwner)
+                    {
+                        return;
+                    }
+
+                    Logger.Information("Owner verified, toggling disconnect notification...");
                     if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
                         config = new DiscordChannelConfig();
 
