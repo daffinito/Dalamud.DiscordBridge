@@ -24,7 +24,7 @@ namespace Dalamud.DiscordBridge
         public DiscordHandler Discord;
         public Configuration Config;
         public DiscordBridgeProvider DiscordBridgeProvider;
-        public FreeCompanyActionManager FCActionManager;
+        internal FreeCompanyActionManager FCActionManager;
 
         static readonly IPluginLog Logger = Service.Logger;
 
