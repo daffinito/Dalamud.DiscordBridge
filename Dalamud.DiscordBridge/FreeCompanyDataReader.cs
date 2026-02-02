@@ -102,25 +102,14 @@ namespace Dalamud.DiscordBridge
             var members = new List<FCMemberInfo>();
 
             var agent = GetFCAgent();
-            if (agent == null)
+            if (agent == null || agent->InfoProxyFreeCompany == null)
                 return members;
 
-            for (int i = 0; i < agent->MemberCount && i < 300; i++)
-            {
-                var member = agent->Members.GetPointer(i);
-                if (member == null)
-                    continue;
+            var infoProxy = agent->InfoProxyFreeCompany;
+            var onlineCount = infoProxy->OnlineMembers;
+            var totalCount = infoProxy->TotalMembers;
 
-                if (member->IsOnline)
-                {
-                    members.Add(new FCMemberInfo
-                    {
-                        Name = member->Name.ToString(),
-                        ClassJob = member->ClassJob,
-                        Level = member->Level
-                    });
-                }
-            }
+            Service.Logger.Information($"FC has {totalCount} total members, {onlineCount} online");
 
             return members;
         }
