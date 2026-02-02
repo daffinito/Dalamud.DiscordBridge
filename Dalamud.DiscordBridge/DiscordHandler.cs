@@ -792,156 +792,65 @@ namespace Dalamud.DiscordBridge
                     return;
                 }
 
-                if (args[0] == this.plugin.Config.DiscordBotPrefix + "listfcactions")
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "fconline")
                 {
                     if (!await EnsureOwner(message.Author, message.Channel))
                         return;
 
-                    var actions = this.plugin.FCActionManager.GetAllActions();
-                    if (!actions.Any())
+                    var members = await Service.Framework.RunOnFrameworkThread(() =>
+                        this.plugin.FCDataReader.GetOnlineMembers());
+
+                    if (!members.Any())
                     {
-                        await SendGenericEmbed(message.Channel, "No FC actions found.", "FC Actions", EmbedColorError);
-                        return;
-                    }
-
-                    var embedBuilder = new EmbedBuilder()
-                        .WithCurrentTimestamp()
-                        .WithColor(0x00A0DC)
-                        .WithTitle("Free Company Actions");
-
-                    var description = "**Available FC Actions:**\n\n";
-                    foreach (var action in actions)
-                    {
-                        var iconFolder = action.IconId / 1000 * 1000;
-                        description += $"**ID {action.Id}**: {action.Name} (Cost: {action.Cost:N0})\n";
-                    }
-
-                    embedBuilder.WithDescription(description);
-                    embedBuilder.WithFooter(footer => footer.WithText("Use " + this.plugin.Config.DiscordBotPrefix + "enablefcaction <id> to activate"));
-
-                    await message.Channel.SendMessageAsync(embed: embedBuilder.Build());
-                    return;
-                }
-
-                if (args[0] == this.plugin.Config.DiscordBotPrefix + "activefcactions")
-                {
-                    if (!await EnsureOwner(message.Author, message.Channel))
-                        return;
-
-                    var activeActions = await Service.Framework.RunOnFrameworkThread(() =>
-                        this.plugin.FCActionManager.GetActiveActions());
-
-                    if (!activeActions.Any())
-                    {
-                        await SendGenericEmbed(message.Channel, "No FC actions are currently active.", "Active FC Actions", EmbedColorFine);
+                        await SendGenericEmbed(message.Channel, "No FC members are currently online, or you are not in a Free Company.", "FC Online Members", EmbedColorError);
                         return;
                     }
 
                     var embedBuilder = new EmbedBuilder()
                         .WithCurrentTimestamp()
                         .WithColor(0x00FF00)
-                        .WithTitle("Active Free Company Actions");
+                        .WithTitle("Free Company - Online Members");
+
+                    var description = $"**{members.Count} member{(members.Count != 1 ? "s" : "")} online:**\n\n";
+                    foreach (var member in members.OrderBy(m => m.Name))
+                    {
+                        description += $"• **{member.Name}** - Lv{member.Level}\n";
+                    }
+
+                    embedBuilder.WithDescription(description);
+                    await message.Channel.SendMessageAsync(embed: embedBuilder.Build());
+                    return;
+                }
+
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "fcactions")
+                {
+                    if (!await EnsureOwner(message.Author, message.Channel))
+                        return;
+
+                    var activeActions = await Service.Framework.RunOnFrameworkThread(() =>
+                        this.plugin.FCDataReader.GetActiveActions());
+
+                    if (!activeActions.Any())
+                    {
+                        await SendGenericEmbed(message.Channel, "No Free Company actions are currently active.", "FC Actions", EmbedColorFine);
+                        return;
+                    }
+
+                    var embedBuilder = new EmbedBuilder()
+                        .WithCurrentTimestamp()
+                        .WithColor(0x00A0DC)
+                        .WithTitle("Free Company - Active Actions");
 
                     var description = "**Currently Active:**\n\n";
                     foreach (var action in activeActions)
                     {
                         var timespan = TimeSpan.FromSeconds(action.TimeRemaining);
-                        description += $"**{action.Name}** (ID: {action.Id})\n";
-                        description += $"Time Remaining: {timespan.Hours:D2}:{timespan.Minutes:D2}:{timespan.Seconds:D2}\n\n";
+                        description += $"• **{action.Name}**\n";
+                        description += $"  Time Remaining: {timespan.Hours:D2}:{timespan.Minutes:D2}:{timespan.Seconds:D2}\n\n";
                     }
 
                     embedBuilder.WithDescription(description);
-                    embedBuilder.WithFooter(footer => footer.WithText("Use " + this.plugin.Config.DiscordBotPrefix + "disablefcaction <id> to deactivate"));
-
                     await message.Channel.SendMessageAsync(embed: embedBuilder.Build());
-                    return;
-                }
-
-                if (args[0] == this.plugin.Config.DiscordBotPrefix + "enablefcaction")
-                {
-                    if (!await EnsureOwner(message.Author, message.Channel))
-                        return;
-
-                    if (args.Length < 2)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            "Usage: " + this.plugin.Config.DiscordBotPrefix + "enablefcaction <id>\n\nUse " + this.plugin.Config.DiscordBotPrefix + "listfcactions to see available actions.",
-                            "Enable FC Action", EmbedColorError);
-                        return;
-                    }
-
-                    if (!uint.TryParse(args[1], out var actionId))
-                    {
-                        await SendGenericEmbed(message.Channel, "Invalid action ID. Please provide a valid number.", "Enable FC Action", EmbedColorError);
-                        return;
-                    }
-
-                    var error = await Service.Framework.RunOnFrameworkThread(() =>
-                        this.plugin.FCActionManager.ActivateAction(actionId));
-
-                    if (error != null)
-                    {
-                        await SendGenericEmbed(message.Channel, error, "Enable FC Action", EmbedColorError);
-                        return;
-                    }
-
-                    var actions = this.plugin.FCActionManager.GetAllActions();
-                    var action = actions.FirstOrDefault(a => a.Id == actionId);
-                    var actionName = action?.Name ?? $"Action {actionId}";
-
-                    await SendGenericEmbed(message.Channel,
-                        $"✅ FC menu opened!\n\n" +
-                        $"**Activate:** {actionName} (ID: {actionId})\n\n" +
-                        $"Please complete activation manually:\n" +
-                        $"1️⃣ Click the **Company Actions** tab\n" +
-                        $"2️⃣ Select **{actionName}** from the list\n" +
-                        $"3️⃣ Click **Activate**\n\n" +
-                        $"_Full automation coming soon!_",
-                        "Enable FC Action", EmbedColorFine);
-                    return;
-                }
-
-                if (args[0] == this.plugin.Config.DiscordBotPrefix + "disablefcaction")
-                {
-                    if (!await EnsureOwner(message.Author, message.Channel))
-                        return;
-
-                    if (args.Length < 2)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            "Usage: " + this.plugin.Config.DiscordBotPrefix + "disablefcaction <id>\n\nUse " + this.plugin.Config.DiscordBotPrefix + "activefcactions to see active actions.",
-                            "Disable FC Action", EmbedColorError);
-                        return;
-                    }
-
-                    if (!uint.TryParse(args[1], out var actionId))
-                    {
-                        await SendGenericEmbed(message.Channel, "Invalid action ID. Please provide a valid number.", "Disable FC Action", EmbedColorError);
-                        return;
-                    }
-
-                    var error = await Service.Framework.RunOnFrameworkThread(() =>
-                        this.plugin.FCActionManager.DeactivateAction(actionId));
-
-                    if (error != null)
-                    {
-                        await SendGenericEmbed(message.Channel, error, "Disable FC Action", EmbedColorError);
-                        return;
-                    }
-
-                    var actions = this.plugin.FCActionManager.GetAllActions();
-                    var action = actions.FirstOrDefault(a => a.Id == actionId);
-                    var actionName = action?.Name ?? $"Action {actionId}";
-
-                    await SendGenericEmbed(message.Channel,
-                        $"✅ FC menu opened!\n\n" +
-                        $"**Deactivate:** {actionName} (ID: {actionId})\n\n" +
-                        $"Please complete deactivation manually:\n" +
-                        $"1️⃣ Click the **Company Actions** tab\n" +
-                        $"2️⃣ Right-click **{actionName}** in the active list\n" +
-                        $"3️⃣ Confirm deactivation\n\n" +
-                        $"_Full automation coming soon!_",
-                        "Disable FC Action", EmbedColorFine);
                     return;
                 }
 
@@ -1235,10 +1144,8 @@ namespace Dalamud.DiscordBridge
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledefaultnameavatar","Enable or disable sending webhook messages using your configured bot's name and the default bot avatar.\n**WARNING:**This should be combined with enabling the `togglesender` function or you will be removing any distinction between different player messages.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledf", "Enable or disable sending duty finder updates to this channel.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledisconnect", "Enable or disable sending disconnect notifications to this channel.")
-                        .AddField($"{this.plugin.Config.DiscordBotPrefix}listfcactions", "List all available Free Company actions with their IDs and costs.")
-                        .AddField($"{this.plugin.Config.DiscordBotPrefix}activefcactions", "Show currently active Free Company actions and their remaining time.")
-                        .AddField($"{this.plugin.Config.DiscordBotPrefix}enablefcaction <id>", "Activate a Free Company action by its ID. Use listfcactions to see available actions.")
-                        .AddField($"{this.plugin.Config.DiscordBotPrefix}disablefcaction <id>", "Deactivate a Free Company action by its ID. Use activefcactions to see active actions.")
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}fconline", "List all Free Company members who are currently online.")
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}fcactions", "Show currently active Free Company actions and their remaining time.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggleembed", "Enable or disable sending messages as Webhooks (default) or Embeds (Fallback mode)")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}togglesender", "Enable or disable sending messages with the sender name in the message.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setduplicatems", "Set time in milliseconds that the bot will check to see if any past messages were the same. Default is 0 ms.")

@@ -24,7 +24,7 @@ namespace Dalamud.DiscordBridge
         public DiscordHandler Discord;
         public Configuration Config;
         public DiscordBridgeProvider DiscordBridgeProvider;
-        internal FreeCompanyActionManager FCActionManager;
+        internal FreeCompanyDataReader FCDataReader;
 
         static readonly IPluginLog Logger = Service.Logger;
 
@@ -66,7 +66,7 @@ namespace Dalamud.DiscordBridge
             }
 
 
-            this.FCActionManager = new FreeCompanyActionManager(Service.Data, Service.GameGui, Service.Framework, Service.ObjectTable, Service.GameInteropProvider);
+            this.FCDataReader = new FreeCompanyDataReader(Service.ObjectTable);
             this.DiscordBridgeProvider = new DiscordBridgeProvider(pluginInterface, new DiscordBridgeAPI(this));
             this.Discord = new DiscordHandler(this);
             // Task t = this.Discord.Start(); // bot won't start if we just have this
@@ -254,7 +254,6 @@ namespace Dalamud.DiscordBridge
             this.Discord.Dispose();
 
             this.commandManager.Dispose();
-            this.FCActionManager?.Dispose();
 
             Service.Interface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
 
