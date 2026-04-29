@@ -5,6 +5,7 @@ using Dalamud.DiscordBridge.Attributes;
 using Dalamud.DiscordBridge.Model;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Text;
+using Dalamud.Game.Chat;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Plugin;
@@ -47,11 +48,6 @@ namespace Dalamud.DiscordBridge
                 for (int i = 0; i < config.ChatTypes.Count; i++)
                 {
                     XivChatType xct = config.ChatTypes[i];
-                    if ((int)xct > 127)
-                    {
-                        config.ChatTypes[i] = (XivChatType)((int)xct & 0x7F);
-                        this.Config.Save();
-                    }
                     try
                     {
                         xct.GetInfo();
@@ -66,7 +62,7 @@ namespace Dalamud.DiscordBridge
             }
 
 
-            this.FCDataReader = new FreeCompanyDataReader(Service.ObjectTable);
+            this.FCDataReader = new FreeCompanyDataReader();
             this.DiscordBridgeProvider = new DiscordBridgeProvider(pluginInterface, new DiscordBridgeAPI(this));
             this.Discord = new DiscordHandler(this);
             // Task t = this.Discord.Start(); // bot won't start if we just have this
@@ -125,21 +121,21 @@ namespace Dalamud.DiscordBridge
 
         private async void OnLogoutEvent(int type, int code)
         {
-            // Parameters:
-            //   type:
-            //     The type of logout.
-            //
-            //   code:
-            //     The success/failure code
+            try
+            {
+                string playerName = "Unknown";
+                try { playerName = cachedLocalPlayer?.Name.ToString() ?? "Unknown"; } catch { }
 
-            cachedLocalPlayer = null;
+                cachedLocalPlayer = null;
 
-            this.Discord.MessageQueue.Enqueue(new QueuedDisconnectEvent());
+                this.Discord?.MessageQueue?.Enqueue(new QueuedDisconnectEvent { PlayerName = playerName });
 
-            await this.Discord.SetIdlePresence();
-            // this.Discord.Dispose();
-            // this.Discord = new DiscordHandler(this);
-            //startedFromConstructor = false;
+                await (this.Discord?.SetIdlePresence() ?? Task.CompletedTask);
+            }
+            catch (Exception e)
+            {
+                try { Logger.Error(e, "OnLogoutEvent failed."); } catch { }
+            }
         }
 
         private void ClientStateOnCfPop(ContentFinderCondition e)
@@ -150,26 +146,26 @@ namespace Dalamud.DiscordBridge
             });
         }
 
-        private void ChatOnOnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool ishandled)
+        private void ChatOnOnChatMessage(IChatMessage message)
         {
-            if (ishandled) return; // don't process a message that's been handled.
+            if (message.IsHandled) return;
 
-            if (type == XivChatType.RetainerSale)
+            if (message.LogKind == XivChatType.RetainerSale)
             {
                 this.Discord.MessageQueue.Enqueue(new QueuedRetainerItemSaleEvent 
                 {
-                    ChatType = type,
-                    Message = message,
-                    Sender = sender
+                    ChatType = message.LogKind,
+                    Message = message.Message,
+                    Sender = message.Sender
                 });
             }
             else
             {
                 this.Discord.MessageQueue.Enqueue(new QueuedChatEvent
                 {
-                    ChatType = (XivChatType)((int)type & 0x7F), // strip off the sender mask subtype
-                    Message = message,
-                    Sender = sender,
+                    ChatType = message.LogKind,
+                    Message = message.Message,
+                    Sender = message.Sender,
                     AvatarUrl = string.Empty
                 });
             }

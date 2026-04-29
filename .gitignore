@@ -339,3 +339,7 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 .DS_Store
+
+# Claude
+claude.md
+.claude/

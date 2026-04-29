@@ -9,6 +9,7 @@ using Dalamud.Plugin.Services;
 using Discord;
 using Discord.Webhook;
 using Discord.WebSocket;
+using Lumina.Excel.Sheets;
 using Lumina.Text.ReadOnly;
 using NetStone;
 using NetStone.Model.Parseables.Character;
@@ -811,10 +812,22 @@ namespace Dalamud.DiscordBridge
                         .WithColor(0x00FF00)
                         .WithTitle("Free Company - Online Members");
 
+                    var territorySheet = Service.Data.GetExcelSheet<TerritoryType>();
                     var description = $"**{members.Count} member{(members.Count != 1 ? "s" : "")} online:**\n\n";
                     foreach (var member in members.OrderBy(m => m.Name))
                     {
-                        description += $"• **{member.Name}** - Lv{member.Level}\n";
+                        var location = "";
+                        try
+                        {
+                            if (member.Location > 0 && territorySheet != null)
+                                location = territorySheet.GetRow(member.Location).PlaceName.Value.Name.ToString();
+                        }
+                        catch { }
+
+                        if (!string.IsNullOrEmpty(location))
+                            description += $"• **{member.Name}** - {location}\n";
+                        else
+                            description += $"• **{member.Name}**\n";
                     }
 
                     embedBuilder.WithDescription(description);
@@ -844,9 +857,16 @@ namespace Dalamud.DiscordBridge
                     var description = "**Currently Active:**\n\n";
                     foreach (var action in activeActions)
                     {
-                        var timespan = TimeSpan.FromSeconds(action.TimeRemaining);
                         description += $"• **{action.Name}**\n";
-                        description += $"  Time Remaining: {timespan.Hours:D2}:{timespan.Minutes:D2}:{timespan.Seconds:D2}\n\n";
+                        if (action.TimeRemaining > 0)
+                        {
+                            var timespan = TimeSpan.FromSeconds(action.TimeRemaining);
+                            description += $"  Time Remaining: {timespan.Hours:D2}:{timespan.Minutes:D2}:{timespan.Seconds:D2}\n\n";
+                        }
+                        else
+                        {
+                            description += "\n";
+                        }
                     }
 
                     embedBuilder.WithDescription(description);
@@ -1635,10 +1655,14 @@ namespace Dalamud.DiscordBridge
             }
         }
 
-        public async Task SendDisconnectEvent()
+        public async Task SendDisconnectEvent(string playerName)
         {
+            Logger.Information("SendDisconnectEvent called.");
+
             var applicableChannels =
-                this.plugin.Config.ChannelConfigs.Where(x => x.Value.IsDisconnectNotification);
+                this.plugin.Config.ChannelConfigs.Where(x => x.Value.IsDisconnectNotification).ToList();
+
+            Logger.Information($"Found {applicableChannels.Count} channels with disconnect notifications enabled.");
 
             if (!applicableChannels.Any())
                 return;
@@ -1651,55 +1675,63 @@ namespace Dalamud.DiscordBridge
                 .WithFooter(footer =>
                 {
                     footer
-                        .WithText("For: " + plugin.cachedLocalPlayer?.Name ?? "Unknown LocalPlayer")
+                        .WithText($"For: {playerName}")
                         .WithIconUrl(Constant.LogoLink);
                 });
 
             foreach (var channelConfig in applicableChannels)
             {
-                var socketChannel = this.socketClient.GetChannel(channelConfig.Key);
-
-                if (socketChannel == null)
+                try
                 {
-                    Logger.Error("Could not find channel {0} for disconnect notification", channelConfig.Key);
-                    continue;
-                }
+                    var socketChannel = this.socketClient.GetChannel(channelConfig.Key);
 
-                IGuildChannel guildChannel = (IGuildChannel)socketChannel;
-                IGuildUser guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
-                bool hasManageWebHooks = guildUser.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks);
-
-                if (socketChannel is SocketDMChannel)
-                {
-                    embedBuilder.WithAuthor(new EmbedAuthorBuilder {Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink});
-                    var DMChannel = await this.socketClient.GetDMChannelAsync(channelConfig.Key);
-                    await DMChannel.SendMessageAsync(embed: embedBuilder.Build());
-                }
-                else if (!hasManageWebHooks)
-                {
-                    Logger.Debug("FALLBACKMODE - Unable to create WebHook - No Permission\n");
-                    embedBuilder
-                        .WithAuthor(new EmbedAuthorBuilder { Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink })
-                        .WithDescription("FALLBACKMODE - Unable to create WebHook - Missing ManageWebHook permission.");
-                    await ((ISocketMessageChannel)socketChannel).SendMessageAsync(embed: embedBuilder.Build());
-                }
-                else
-                {
-                    var webhookClient = await GetOrCreateWebhookClient(socketChannel);
-
-                    if (webhookClient != null)
+                    if (socketChannel == null)
                     {
-                        await webhookClient.SendMessageAsync(embeds: [embedBuilder.Build()],
-                    username: "Dalamud Chat Bridge", avatarUrl: Constant.LogoLink);
+                        Logger.Error("Could not find channel {0} for disconnect notification", channelConfig.Key);
+                        continue;
+                    }
+
+                    if (socketChannel is SocketDMChannel)
+                    {
+                        embedBuilder.WithAuthor(new EmbedAuthorBuilder { Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink });
+                        var DMChannel = await this.socketClient.GetDMChannelAsync(channelConfig.Key);
+                        await DMChannel.SendMessageAsync(embed: embedBuilder.Build());
                     }
                     else
                     {
-                        Logger.Debug("FALLBACKMODE - Unable to create WebHook - Unknown error\n");
-                        embedBuilder
-                            .WithAuthor(new EmbedAuthorBuilder { Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink })
-                            .WithDescription("FALLBACKMODE - Unable to create WebHook - Unknown failure");
-                        await ((ISocketMessageChannel)socketChannel).SendMessageAsync(embed: embedBuilder.Build());
+                        IGuildChannel guildChannel = (IGuildChannel)socketChannel;
+                        IGuildUser guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
+                        bool hasManageWebHooks = guildUser.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks);
+
+                        if (!hasManageWebHooks)
+                        {
+                            Logger.Debug("FALLBACKMODE - Unable to create WebHook - No Permission\n");
+                            embedBuilder
+                                .WithAuthor(new EmbedAuthorBuilder { Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink });
+                            await ((ISocketMessageChannel)socketChannel).SendMessageAsync(embed: embedBuilder.Build());
+                        }
+                        else
+                        {
+                            var webhookClient = await GetOrCreateWebhookClient(socketChannel);
+
+                            if (webhookClient != null)
+                            {
+                                await webhookClient.SendMessageAsync(embeds: [embedBuilder.Build()],
+                                    username: "Dalamud Chat Bridge", avatarUrl: Constant.LogoLink);
+                            }
+                            else
+                            {
+                                Logger.Debug("FALLBACKMODE - Unable to create WebHook - Unknown error\n");
+                                embedBuilder
+                                    .WithAuthor(new EmbedAuthorBuilder { Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink });
+                                await ((ISocketMessageChannel)socketChannel).SendMessageAsync(embed: embedBuilder.Build());
+                            }
+                        }
                     }
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "Failed to send disconnect notification to channel {0}", channelConfig.Key);
                 }
             }
         }

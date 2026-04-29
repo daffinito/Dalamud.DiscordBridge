@@ -8,5 +8,6 @@ namespace Dalamud.DiscordBridge.Model
 {
     public class QueuedDisconnectEvent : QueuedXivEvent
     {
+        public string PlayerName { get; set; } = "Unknown";
     }
 }

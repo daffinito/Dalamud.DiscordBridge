@@ -70,7 +70,7 @@ namespace Dalamud.DiscordBridge
                                     if (retainerSaleEvent.Message.Payloads.First(x => x.Type == PayloadType.Item) is not ItemPayload itemLink)
                                     {
                                         Logger.Error("itemLink was null. Msg: {0}", BitConverter.ToString(retainerSaleEvent.Message.Encode()));
-                                        break;
+                                        continue;
                                     }
                                     else
                                     {
@@ -277,10 +277,10 @@ namespace Dalamud.DiscordBridge
                                 Logger.Error(e, "Could not send discord message.");
                             }
 
-                        if (resultEvent is QueuedDisconnectEvent)
+                        if (resultEvent is QueuedDisconnectEvent disconnectEvent)
                             try
                             {
-                                await this.Plugin.Discord.SendDisconnectEvent();
+                                await this.Plugin.Discord.SendDisconnectEvent(disconnectEvent.PlayerName);
                             }
                             catch (Exception e)
                             {
